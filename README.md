@@ -4,6 +4,8 @@
 
 🇬🇧 **English** · 🇮🇹 [Italiano](README.it.md)
 
+> **Work in progress — private repository.** It runs on one homelab; a few limits must be fixed before publishing. See [To do before publishing](#to-do-before-publishing).
+
 **Self-hosted PDF tools on a single web page.** Merge, split, extract, reorder, rotate, delete pages, compress, convert between PDF and images, protect or unlock with a password, add page numbers and watermarks. Everything runs on your own server: each request works in a temporary folder that is deleted as soon as the result has been sent, so **no file stays on the server**.
 
 ![Docker](https://img.shields.io/badge/docker-compose-2496ED?logo=docker&logoColor=white)
@@ -103,6 +105,17 @@ server/
 docker-compose.yml
 .env.example
 ```
+
+## To do before publishing
+
+- [ ] Cap the pixel size of each page in PDF → images: a tiny PDF with a huge page can exhaust the container memory
+- [ ] Random owner password when none is given (today it is derived from the user password)
+- [ ] `/api/info`: answer 413, not 400, for files over the limit; fix the `/api/thumbs` response in the docs (`img`, `rot`)
+- [ ] Enforce the upload limit while receiving, plus limits on the number of files, total size and output size
+- [ ] Limit on parallel heavy jobs
+- [ ] pytest tests, browser test of the page, CI
+- [ ] English or bilingual interface, security headers
+- [ ] Review the name and make sure nothing is copied from the site that inspired it
 
 ## License
 

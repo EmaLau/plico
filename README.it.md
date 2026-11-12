@@ -4,6 +4,8 @@
 
 🇬🇧 [English](README.md) · 🇮🇹 **Italiano**
 
+> **Lavori in corso — repository privato.** Gira su un homelab; alcuni limiti vanno sistemati prima di pubblicarlo. L'elenco è nel [README in inglese](README.md#to-do-before-publishing).
+
 **Strumenti PDF self-hosted in una sola pagina web.** Unisci, dividi, estrai, riordina, ruota, elimina pagine, comprimi, converti tra PDF e immagini, proteggi o sblocca con password, aggiungi numeri di pagina e filigrane. Tutto gira sul tuo server: ogni richiesta lavora in una cartella temporanea che viene cancellata appena il risultato è stato inviato, quindi **sul server non resta nessun file**.
 
 ## Strumenti
