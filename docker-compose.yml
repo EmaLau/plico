@@ -18,6 +18,8 @@ services:
       MAX_OUTPUT_MB: ${MAX_OUTPUT_MB:-4096}
       MAX_PARALLEL: ${MAX_PARALLEL:-2}
       MAX_PAGE_MPX: ${MAX_PAGE_MPX:-50}
+      UPDF_ADMIN_PASSWORD: ${UPDF_ADMIN_PASSWORD:-}
+      API_REQUIRE_KEY: ${API_REQUIRE_KEY:-false}
     volumes:
       - updf-work:/work
     deploy:

@@ -45,6 +45,9 @@ Copia `.env.example` in `.env` e cambia quello che serve.
 | Variabile | Predefinito | Descrizione |
 |---|---|---|
 | `UPDF_BIND` / `UPDF_PORT` | `127.0.0.1` / `8080` | Dove pubblicare il servizio (`0.0.0.0` per tutta la rete) |
+| `UPDF_ADMIN_PASSWORD` | vuota | Password della pagina `/admin` dove si gestiscono le chiavi API. Vuota = pagina disattivata. Si può anche scrivere nel file `admin-password` dentro `DATA_DIR` |
+| `API_REQUIRE_KEY` | `false` | `true` = le chiamate fatte fuori dalla pagina web richiedono una chiave API |
+| `DATA_DIR` | `/work/data` | Dove si salvano le chiavi API (solo l'hash SHA-256) e il segreto per firmare i cookie |
 | `MAX_UPLOAD_MB` | `0` | Dimensione massima di ogni file caricato; `0` = nessun limite |
 | `MAX_OUTPUT_MB` | `4096` | Dimensione massima dei risultati di una richiesta (es. tutte le immagini di *PDF in immagini*) |
 | `MAX_PARALLEL` | `2` | Lavori pesanti eseguiti insieme; gli altri aspettano il loro turno |
@@ -55,12 +58,16 @@ Copia `.env.example` in `.env` e cambia quello che serve.
 
 ## API
 
-L'elenco completo degli endpoint e dei campi è nel [README in inglese](README.md#api). Esempio:
+La documentazione interattiva è in **`/apidocs`**; l'elenco degli endpoint è anche nel [README in inglese](README.md#api).
+
+Le chiavi API funzionano come in Gokapi: imposta `UPDF_ADMIN_PASSWORD`, apri **`/admin`** e crea una chiave con un nome e i permessi che servono (uno per strumento). La chiave si vede una sola volta; poi la mandi nell'intestazione `apikey`:
 
 ```bash
 # unisci due PDF
-curl -F files=@a.pdf -F files=@b.pdf -o unito.pdf http://localhost:8080/api/merge
+curl -H "apikey: updf_..." -F files=@a.pdf -F files=@b.pdf -o unito.pdf http://localhost:8080/api/merge
 ```
+
+La pagina web non ha bisogno della chiave. Con `API_REQUIRE_KEY=true` le chiamate senza chiave fatte fuori dalla pagina vengono rifiutate (401); una chiave senza il permesso per quello strumento riceve 403.
 
 ## Licenza
 

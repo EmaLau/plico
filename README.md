@@ -42,9 +42,9 @@ Open <http://localhost:8080>. To check that every tool works:
 docker compose exec universal-pdf python3 /app/selftest.py
 ```
 
-The selftest runs 21 checks against the live server and saves sample results in `/work/selftest/` inside the container.
+The selftest runs about 30 checks (some only when the related setting is enabled) against the live server and saves sample results in `/work/selftest/` inside the container.
 
-> **Security note.** The service has no login and by default listens only on `127.0.0.1`. Open it to the network only if the network is trusted (home, VPN), or put it behind a reverse proxy with authentication. Do not expose it directly to the Internet.
+> **Security note.** The web page has no login and by default the service listens only on `127.0.0.1`. API keys (below) control scripts, not the page. Open it to the network only if the network is trusted (home, VPN), or put it behind a reverse proxy with authentication. Do not expose it directly to the Internet.
 
 ## Configuration
 
@@ -58,10 +58,31 @@ Copy `.env.example` to `.env` and change what you need.
 | `MAX_PARALLEL` | `2` | Heavy jobs run at the same time; the others wait their turn |
 | `MAX_PAGE_MPX` | `50` | Maximum megapixels for a page rendered by *PDF to images*: larger pages get a lower DPI |
 | `UPDF_CPUS` / `UPDF_MEMORY` | `4` / `3G` | Container resource limits |
+| `UPDF_ADMIN_PASSWORD` | empty | Password of the `/admin` page where API keys are managed. Empty = admin page disabled. It can also be written in the file `admin-password` inside `DATA_DIR` |
+| `API_REQUIRE_KEY` | `false` | `true` = API calls made outside the web page need an API key |
+| `DATA_DIR` | `/work/data` | Where API keys (only their SHA-256 hashes) and the signing secret are stored |
 | `UPDF_UID` / `UPDF_GID` | `1000` | User that runs the service inside the container |
 | `TZ` | `Europe/Rome` | Time zone |
 
 ## API
+
+Interactive documentation (Swagger UI) is at **`/apidocs`**, the OpenAPI schema at `/apidocs/openapi.json`.
+
+### API keys
+
+API keys work like in [Gokapi](https://github.com/Forceu/Gokapi):
+
+1. Set `UPDF_ADMIN_PASSWORD` and open **`/admin`**.
+2. Create a key with a name and the permissions it needs, one per tool (`info`, `merge`, `split`, `organize`, `rotate`, `compress`, `img2pdf`, `pdf2img`, `protect`, `stamp`). The full key is shown only once; the server keeps its SHA-256 hash, the last time it was used, and lets you change permissions or revoke it.
+3. Send it in the `apikey` header:
+
+```bash
+curl -H "apikey: updf_..." -F files=@a.pdf -F files=@b.pdf -o merged.pdf http://localhost:8080/api/merge
+```
+
+A wrong or revoked key gets `401`, a key without the permission for that tool gets `403`; both are checked before the upload is received. The web page does not need a key: opening it sets a signed session cookie. With `API_REQUIRE_KEY=true`, calls with neither a key nor that cookie get `401`. Anyone who can open the page can still get the cookie, so this keeps scripts in order; it is not a protection against people who can reach the service.
+
+### Endpoints
 
 All endpoints are `POST` with `multipart/form-data`. They answer with the resulting file, or with JSON `{"detail": "..."}` and an HTTP error code.
 
@@ -95,6 +116,7 @@ curl -F file=@scan.pdf -F level=high -o smaller.pdf http://localhost:8080/api/co
 - **FastAPI** server (`server/server.py`) with a single static page (`server/static/index.html`, no build step and no external resources).
 - **PyMuPDF** for pages, thumbnails, images and stamps; **pikepdf** for encryption; **Ghostscript** for compression.
 - Each request creates a folder under `/work/upd`, and a background task removes it once the response has been sent. Leftovers from an interrupted run are removed when the service starts.
+- API keys and the `/admin` page are in `server/apikeys.py` and `server/static/admin.html`.
 - The container runs as an unprivileged user, behind `tini`.
 
 ## Project layout
@@ -103,7 +125,8 @@ curl -F file=@scan.pdf -F level=high -o smaller.pdf http://localhost:8080/api/co
 server/
   Dockerfile       Debian trixie + Python, PyMuPDF, pikepdf, Ghostscript
   server.py        API and page
-  static/          the web page
+  apikeys.py       API keys and /admin login
+  static/          the web page (index.html) and the admin page (admin.html)
   selftest.py      real test of every tool against the running server
 docker-compose.yml
 .env.example

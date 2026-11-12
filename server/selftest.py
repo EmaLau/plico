@@ -28,7 +28,19 @@ def make_png():
     return pix.tobytes("png")
 
 
-def post(path, fields=None, files=()):
+def get_cookie(resp_headers, name):
+    for k, v in resp_headers:
+        if k.lower() == "set-cookie" and v.startswith(name + "="):
+            return v.split(";", 1)[0]
+    return ""
+
+
+# sessione della pagina web, come un browser che apre "/"
+with urllib.request.urlopen(URL + "/", timeout=30) as r:
+    SESSION = get_cookie(r.getheaders(), "updf_session")
+
+
+def post(path, fields=None, files=(), headers=None, session=True):
     b = uuid.uuid4().hex
     body = io.BytesIO()
     for k, v in (fields or {}).items():
@@ -37,12 +49,29 @@ def post(path, fields=None, files=()):
         body.write(f'--{b}\r\nContent-Disposition: form-data; name="{k}"; filename="{name}"\r\n'
                    f'Content-Type: application/octet-stream\r\n\r\n'.encode() + data + b"\r\n")
     body.write(f"--{b}--\r\n".encode())
-    req = urllib.request.Request(URL + path, body.getvalue(), {"Content-Type": f"multipart/form-data; boundary={b}"})
+    h = {"Content-Type": f"multipart/form-data; boundary={b}", **(headers or {})}
+    if session and SESSION:
+        h["Cookie"] = SESSION
+    req = urllib.request.Request(URL + path, body.getvalue(), h)
     try:
         with urllib.request.urlopen(req, timeout=300) as r:
             return r.status, r.read(), dict(r.headers)
     except urllib.error.HTTPError as e:
         return e.code, e.read(), dict(e.headers)
+
+
+def jcall(method, path, body=None, cookie="", xrw=True):
+    h = {"Content-Type": "application/json"}
+    if xrw:
+        h["X-Requested-With"] = "universal-pdf"
+    if cookie:
+        h["Cookie"] = cookie
+    req = urllib.request.Request(URL + path, json.dumps(body).encode() if body is not None else None, h, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return r.status, json.loads(r.read() or b"{}"), r.getheaders()
+    except urllib.error.HTTPError as e:
+        return e.code, json.loads(e.read() or b"{}"), e.headers.items()
 
 
 ok = True
@@ -130,6 +159,47 @@ if max_out <= 10:
     check("pdf2img output limit -> 413", s == 413, json.loads(b)["detail"])
 else:
     print(f"SKIP pdf2img output limit -> 413  (MAX_OUTPUT_MB={max_out:g}: si prova solo fino a 10 MB)")
+# Chiavi API
+check("page session cookie", SESSION.startswith("updf_session="))
+s, b, _ = post("/api/info", files=[("file", "a.pdf", pdf)], headers={"apikey": "updf_sbagliata"})
+check("invalid api key -> 401", s == 401, json.loads(b)["detail"])
+if os.environ.get("API_REQUIRE_KEY", "").lower() in ("1", "true", "yes", "si", "on"):
+    s, b, _ = post("/api/info", files=[("file", "a.pdf", pdf)], session=False)
+    check("API_REQUIRE_KEY: no key -> 401", s == 401)
+else:
+    s, b, _ = post("/api/info", files=[("file", "a.pdf", pdf)], session=False)
+    check("no key, no session -> 200 (API_REQUIRE_KEY off)", s == 200)
+admin_pw = os.environ.get("UPDF_ADMIN_PASSWORD", "")
+if admin_pw:
+    s, _, _ = jcall("POST", "/admin/api/login", {"password": "sbagliata"})
+    check("admin wrong password -> 401", s == 401)
+    s, _, h = jcall("POST", "/admin/api/login", {"password": admin_pw})
+    adm = get_cookie(h, "updf_admin")
+    check("admin login", s == 200 and adm)
+    s, _, _ = jcall("POST", "/admin/api/keys", {"name": "x", "perms": ["merge"]}, adm, xrw=False)
+    check("admin write without X-Requested-With -> 403", s == 403)
+    s, _, _ = jcall("GET", "/admin/api/keys")
+    check("admin list without login -> 401", s == 401)
+    s, k, _ = jcall("POST", "/admin/api/keys", {"name": "selftest", "perms": ["merge"]}, adm)
+    key = k.get("key", "")
+    check("create api key", s == 200 and key.startswith("updf_"))
+    s, b, _ = post("/api/merge", files=[("files", "a.pdf", pdf), ("files", "b.pdf", pdf2)],
+                   headers={"apikey": key}, session=False)
+    check("api key with permission -> 200", s == 200 and pages(b) == 7)
+    s, b, _ = post("/api/rotate", files=[("file", "a.pdf", pdf)], headers={"apikey": key}, session=False)
+    check("api key without permission -> 403", s == 403, json.loads(b)["detail"])
+    s, lst, _ = jcall("GET", "/admin/api/keys", cookie=adm)
+    mine = [x for x in lst["keys"] if x["id"] == k["id"]]
+    check("key listed with last use, no hash", mine and mine[0]["last_used"] and "hash" not in mine[0])
+    s, _, _ = jcall("PUT", f"/admin/api/keys/{k['id']}", {"perms": ["merge", "rotate"]}, adm)
+    s2, b, _ = post("/api/rotate", files=[("file", "a.pdf", pdf)], headers={"apikey": key}, session=False)
+    check("permission added -> 200", s == 200 and s2 == 200)
+    s, _, _ = jcall("DELETE", f"/admin/api/keys/{k['id']}", cookie=adm)
+    s2, b, _ = post("/api/merge", files=[("files", "a.pdf", pdf), ("files", "b.pdf", pdf2)],
+                    headers={"apikey": key}, session=False)
+    check("revoked key -> 401", s == 200 and s2 == 401)
+else:
+    print("SKIP admin / api keys  (UPDF_ADMIN_PASSWORD non impostata)")
 left = list((WORK / "upd").glob("*")) if (WORK / "upd").exists() else []
 check("no leftover temp files", not left, str(left))
 print("TUTTO OK" if ok else "CI SONO ERRORI")

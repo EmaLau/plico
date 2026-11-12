@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Universal-PDF · Chiavi API</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23e5322d'/%3E%3Cpath d='M7 5h7l4 4v10H7z' fill='white'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#f4f6fb; --surface:#fff; --surface-2:#eef1f7; --text:#18202e; --muted:#5f6b80; --line:#e1e6ef;
+  --accent:#e5322d; --accent-hover:#c9221d; --ok:#16a34a; --err:#dc2626; --sel:#2563eb;
+  --shadow:0 1px 2px rgba(16,24,40,.05),0 6px 20px rgba(16,24,40,.06); --radius:16px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#10141c; --surface:#181e2a; --surface-2:#212938; --text:#e8edf5; --muted:#9aa6ba; --line:#2a3344;
+  --accent:#ff5a52; --accent-hover:#ff7b74; --ok:#4ade80; --err:#f87171; --sel:#5b8cff;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);
+}}
+:root[data-theme="dark"]{
+  --bg:#10141c; --surface:#181e2a; --surface-2:#212938; --text:#e8edf5; --muted:#9aa6ba; --line:#2a3344;
+  --accent:#ff5a52; --accent-hover:#ff7b74; --ok:#4ade80; --err:#f87171; --sel:#5b8cff;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--sel)}
+main{max-width:920px;margin:0 auto;padding:36px 16px 64px}
+header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:28px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;color:var(--text);text-decoration:none}
+.brand .logo{width:34px;height:34px;border-radius:9px;background:var(--accent);display:grid;place-items:center;color:#fff}
+.links{display:flex;gap:14px;align-items:center;font-size:14px}
+h1{font-size:clamp(24px,4vw,34px);line-height:1.1;margin:0 0 8px;letter-spacing:-.015em}
+.lead{color:var(--muted);margin:0 0 22px;max-width:680px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;margin-top:16px}
+.panel h2{margin:0 0 12px;font-size:17px}
+label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--muted)}
+input[type=text],input[type=password]{font:inherit;color:var(--text);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:9px 11px;width:100%}
+.perms{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px 14px;margin:12px 0}
+.check{display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer}
+.check input{accent-color:var(--accent);width:17px;height:17px;flex:none}
+.btn{border:0;border-radius:10px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer;background:var(--accent);color:#fff}
+.btn:hover{background:var(--accent-hover)}
+.btn.ghost{background:var(--surface-2);color:var(--text)}
+.btn.ghost:hover{background:var(--line)}
+.btn.small{padding:6px 11px;font-size:13px}
+.btn.danger{background:transparent;color:var(--err);border:1px solid var(--line)}
+.row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.row > label.f{flex:1;min-width:200px}
+.err{color:var(--err);font-size:14px;min-height:1.4em;margin-top:8px}
+.note{font-size:13.5px;color:var(--muted)}
+.newkey{border:1px solid color-mix(in srgb,var(--ok) 45%,var(--line));background:color-mix(in srgb,var(--ok) 8%,var(--surface))}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+.keybox{display:flex;gap:8px;align-items:center;margin-top:8px}
+.keybox code{flex:1;min-width:0;overflow-wrap:anywhere;background:var(--surface-2);border-radius:8px;padding:9px 10px}
+.key{border-top:1px solid var(--line);padding:14px 0}
+.key:first-child{border-top:0;padding-top:0}
+.khead{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.khead b{font-size:15px}
+.meta{color:var(--muted);font-size:13px}
+.hidden{display:none !important}
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <a class="brand" href="./"><span class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg></span>Universal-PDF</a>
+    <nav class="links"><a href="apidocs">Documentazione API</a><button id="logout" class="btn ghost small hidden">Esci</button></nav>
+  </header>
+
+  <h1>Chiavi API</h1>
+  <p class="lead">Le chiavi servono agli script (curl, Comandi rapidi di iPhone, altri servizi) per usare l'API. Ognuna ha i suoi permessi e si può revocare in ogni momento. La pagina web non ne ha bisogno.</p>
+
+  <section id="disabled" class="panel hidden">
+    <h2>Area admin disattivata</h2>
+    <p class="note">Per attivarla imposta la variabile <code>UPDF_ADMIN_PASSWORD</code>, oppure scrivi la password nel file <code>admin-password</code> della cartella dei dati (<code>DATA_DIR</code>, predefinita <code>/work/data</code>), poi riavvia il servizio.</p>
+  </section>
+
+  <section id="login" class="panel hidden">
+    <h2>Accedi</h2>
+    <form id="loginForm" class="row">
+      <label class="f">Password admin<input type="password" id="pw" autocomplete="current-password" required></label>
+      <button class="btn" type="submit">Accedi</button>
+    </form>
+    <div class="err" id="loginErr"></div>
+  </section>
+
+  <div id="app" class="hidden">
+    <section class="panel">
+      <h2>Nuova chiave</h2>
+      <form id="createForm">
+        <label class="f">Nome (per ricordarti chi la usa)<input type="text" id="name" maxlength="80" placeholder="es. Comandi rapidi iPhone" required></label>
+        <div class="perms" id="newPerms"></div>
+        <div class="row"><button class="btn" type="submit">Crea chiave</button>
+          <button class="btn ghost small" type="button" id="allPerms">Tutti i permessi</button></div>
+      </form>
+      <div class="err" id="createErr"></div>
+    </section>
+
+    <section id="created" class="panel newkey hidden">
+      <h2>Chiave creata: copiala adesso</h2>
+      <p class="note">Non verrà più mostrata: sul server resta solo una sua impronta. Se la perdi, revocala e creane un'altra.</p>
+      <div class="keybox"><code id="newKey"></code><button class="btn small" id="copy">Copia</button></div>
+      <p class="note">Esempio: <code id="example"></code></p>
+    </section>
+
+    <section class="panel">
+      <h2>Chiavi attive</h2>
+      <p class="note" id="requireNote"></p>
+      <div id="keys"></div>
+      <div class="err" id="listErr"></div>
+    </section>
+  </div>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+let PERMS = {};
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const when = t => t ? new Date(t * 1000).toLocaleString("it-IT", {dateStyle: "medium", timeStyle: "short"}) : "mai";
+
+async function call(method, url, body) {
+  const r = await fetch(url, {method, headers: {"Content-Type": "application/json", "X-Requested-With": "universal-pdf"},
+                              body: body ? JSON.stringify(body) : undefined});
+  let data = {};
+  try { data = await r.json(); } catch {}
+  if (!r.ok) throw Object.assign(new Error(data.detail || "Errore " + r.status), {status: r.status});
+  return data;
+}
+
+function permBoxes(container, selected, prefix) {
+  container.innerHTML = Object.entries(PERMS).map(([k, d]) =>
+    `<label class="check"><input type="checkbox" value="${k}" ${selected.includes(k) ? "checked" : ""} data-p="${prefix}"> ${esc(d)}</label>`).join("");
+}
+const checked = el => [...el.querySelectorAll("input:checked")].map(i => i.value);
+
+async function start() {
+  const st = await call("GET", "admin/api/state");
+  PERMS = st.permissions;
+  $("#disabled").classList.toggle("hidden", st.enabled);
+  $("#login").classList.toggle("hidden", !st.enabled || st.logged);
+  $("#app").classList.toggle("hidden", !st.logged);
+  $("#logout").classList.toggle("hidden", !st.logged);
+  $("#requireNote").textContent = st.require_key
+    ? "Il server richiede una chiave per ogni chiamata fatta fuori dalla pagina web (API_REQUIRE_KEY=true)."
+    : "Le chiamate senza chiave sono ancora accettate. Per rifiutarle imposta API_REQUIRE_KEY=true.";
+  if (st.logged) { permBoxes($("#newPerms"), [], "new"); load(); }
+  else if (st.enabled) $("#pw").focus();
+}
+
+async function load() {
+  $("#listErr").textContent = "";
+  try {
+    const {keys} = await call("GET", "admin/api/keys");
+    $("#keys").innerHTML = keys.length ? keys.map(k => `
+      <div class="key" data-id="${k.id}">
+        <div class="khead"><div><b>${esc(k.name)}</b> <span class="mono meta">${esc(k.prefix)}…</span>
+          <div class="meta">Creata ${when(k.created)} · ultimo uso: ${when(k.last_used)}</div></div>
+          <button class="btn danger small" data-del>Revoca</button></div>
+        <div class="perms">${Object.entries(PERMS).map(([p, d]) =>
+          `<label class="check"><input type="checkbox" value="${p}" ${k.perms.includes(p) ? "checked" : ""}> ${esc(d)}</label>`).join("")}</div>
+      </div>`).join("") : `<p class="note">Nessuna chiave per ora.</p>`;
+  } catch (e) { if (e.status === 401) return start(); $("#listErr").textContent = e.message; }
+}
+
+$("#loginForm").onsubmit = async e => {
+  e.preventDefault(); $("#loginErr").textContent = "";
+  try { await call("POST", "admin/api/login", {password: $("#pw").value}); $("#pw").value = ""; start(); }
+  catch (err) { $("#loginErr").textContent = err.message; }
+};
+$("#logout").onclick = async () => { await call("POST", "admin/api/logout"); $("#created").classList.add("hidden"); start(); };
+$("#allPerms").onclick = () => $("#newPerms").querySelectorAll("input").forEach(i => i.checked = true);
+
+$("#createForm").onsubmit = async e => {
+  e.preventDefault(); $("#createErr").textContent = "";
+  const perms = checked($("#newPerms"));
+  if (!perms.length) return $("#createErr").textContent = "Scegli almeno un permesso";
+  try {
+    const k = await call("POST", "admin/api/keys", {name: $("#name").value, perms});
+    $("#newKey").textContent = k.key;
+    const base = location.href.replace(/admin\/?(#.*)?$/, "");
+    $("#example").textContent = `curl -H "apikey: ${k.key}" -F files=@a.pdf -F files=@b.pdf -o unito.pdf ${base}api/merge`;
+    $("#created").classList.remove("hidden");
+    $("#name").value = ""; permBoxes($("#newPerms"), [], "new"); load();
+  } catch (err) { $("#createErr").textContent = err.message; }
+};
+$("#copy").onclick = async () => {
+  try { await navigator.clipboard.writeText($("#newKey").textContent); $("#copy").textContent = "Copiata"; }
+  catch { getSelection().selectAllChildren($("#newKey")); }
+  setTimeout(() => $("#copy").textContent = "Copia", 1500);
+};
+
+$("#keys").onclick = async e => {
+  const del = e.target.closest("[data-del]"); if (!del) return;
+  const box = del.closest(".key");
+  if (del.dataset.confirm !== "1") { del.dataset.confirm = "1"; del.textContent = "Conferma revoca"; return; }
+  try { await call("DELETE", "admin/api/keys/" + box.dataset.id); load(); }
+  catch (err) { $("#listErr").textContent = err.message; }
+};
+$("#keys").onchange = async e => {
+  const box = e.target.closest(".key"); if (!box) return;
+  try { await call("PUT", "admin/api/keys/" + box.dataset.id, {perms: checked(box)}); }
+  catch (err) { $("#listErr").textContent = err.message; load(); }
+};
+
+start().catch(e => { $("#disabled").classList.remove("hidden"); $("#disabled").querySelector("p").textContent = e.message; });
+</script>
+</body>
+</html>

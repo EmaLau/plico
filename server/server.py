@@ -4,7 +4,10 @@ converti, proteggi/sblocca, numeri di pagina e filigrana).
 Ogni richiesta lavora in una cartella temporanea che viene cancellata appena il file e' stato inviato:
 sul server non resta niente.
 
-API (tutte POST multipart, rispondono col file risultato, o JSON {"detail": ...} con errore)
+Documentazione interattiva dell'API in /apidocs; chiavi API e area admin in apikeys.py (/admin).
+
+API (tutte POST multipart, rispondono col file risultato, o JSON {"detail": ...} con errore;
+intestazione facoltativa "apikey", obbligatoria fuori dalla pagina web se API_REQUIRE_KEY=true)
   /api/info        file             -> {"pages": n, "encrypted": bool, "size": bytes}
   /api/thumbs      file, width      -> {"pages": [{"w","h","rot","img": dataURL JPEG}]}
   /api/merge       files[]          -> PDF (accetta anche immagini)
@@ -39,10 +42,12 @@ from pathlib import Path
 
 import fitz  # PyMuPDF
 import pikepdf
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Body, FastAPI, File, Form, HTTPException, Request, Security, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from starlette.background import BackgroundTask
+
+import apikeys
 
 STATIC = Path(__file__).parent / "static"
 WORK = Path(os.environ.get("WORK_DIR", "/tmp"))
@@ -62,7 +67,24 @@ MAX_PARALLEL = max(1, int(os.environ.get("MAX_PARALLEL", "2")))
 MAX_PAGE_PX = int(float(os.environ.get("MAX_PAGE_MPX", "50")) * 1_000_000)
 IMG_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tif", ".tiff"}
 
-app = FastAPI(title="Universal-PDF", docs_url=None, redoc_url=None, openapi_url=None)
+API_DOC = """Strumenti PDF self-hosted. Ogni richiesta lavora in una cartella temporanea cancellata subito dopo l'invio.
+
+**Chiavi API.** Gli script mandano la chiave nell'intestazione `apikey` (si crea nella pagina `/admin`).
+Ogni chiave ha dei permessi, uno per strumento. La pagina web non ha bisogno della chiave.
+Se il server ha `API_REQUIRE_KEY=true`, le chiamate senza chiave vengono rifiutate.
+
+Tutte le chiamate sono `POST` con `multipart/form-data` e rispondono con il file risultato,
+oppure con JSON `{"detail": "..."}` e un codice di errore HTTP.
+
+Esempio: `curl -H "apikey: updf_..." -F files=@a.pdf -F files=@b.pdf -o unito.pdf http://host:8080/api/merge`"""
+
+app = FastAPI(title="Universal-PDF", version="1.0", description=API_DOC,
+              docs_url="/apidocs", redoc_url=None, openapi_url="/apidocs/openapi.json")
+DATA = Path(os.environ.get("DATA_DIR", str(WORK / "data")))
+KEYS = apikeys.KeyStore(DATA)
+API = {"dependencies": [Security(apikeys.header_scheme)], "tags": ["Strumenti PDF"]}
+# percorso dell'API -> permesso richiesto alla chiave
+PATH_PERM = {f"/api/{p}": p for p in apikeys.PERMISSIONS} | {"/api/thumbs": "info", "/api/unlock": "protect"}
 log = logging.getLogger("universal-pdf")
 _slots: asyncio.Semaphore | None = None
 
@@ -108,6 +130,27 @@ async def http_error(_, exc: HTTPException):
 async def any_error(request, exc: Exception):
     log.error("Errore su %s", request.url.path, exc_info=exc)
     return JSONResponse({"detail": "Errore durante l'elaborazione del file"}, status_code=500)
+
+
+@app.middleware("http")
+async def api_keys(request: Request, call_next):
+    """Controlla chiave e permessi prima di ricevere il file."""
+    perm = PATH_PERM.get(request.url.path)
+    if perm and request.method == "POST":
+        key = request.headers.get("apikey")
+        try:
+            if key:
+                KEYS.check_key(key, perm)
+            elif KEYS.require_key and not KEYS.verify("session", request.cookies.get(apikeys.SESSION_COOKIE)):
+                fail("Serve una chiave API nell'intestazione 'apikey'", 401)
+        except HTTPException as e:
+            return JSONResponse({"detail": e.detail}, status_code=e.status_code)
+    return await call_next(request)
+
+
+@app.on_event("shutdown")
+def flush_keys():
+    KEYS.flush()
 
 
 async def save(job: Job, up: UploadFile, idx: int = 0) -> Path:
@@ -189,17 +232,91 @@ class Output:
 
 # ---------------------------------------------------------------- pagine
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def index():
-    return HTMLResponse((STATIC / "index.html").read_text("utf-8"), headers={"Cache-Control": "no-cache"})
+    resp = HTMLResponse((STATIC / "index.html").read_text("utf-8"), headers={"Cache-Control": "no-cache"})
+    resp.set_cookie(apikeys.SESSION_COOKIE, KEYS.sign("session", apikeys.SESSION_TTL),
+                    max_age=apikeys.SESSION_TTL, httponly=True, samesite="strict")
+    return resp
 
 
-@app.get("/healthz")
+# ---------------------------------------------------------------- area admin (chiavi API)
+
+def admin_only(request: Request, write: bool = False):
+    if not KEYS.admin_enabled:
+        fail("Area admin disattivata: imposta UPDF_ADMIN_PASSWORD", 404)
+    if not KEYS.verify("admin", request.cookies.get(apikeys.ADMIN_COOKIE)):
+        fail("Accedi con la password admin", 401)
+    # contro le richieste inviate da pagine di altri siti
+    if write and request.headers.get("x-requested-with") != "universal-pdf":
+        fail("Richiesta non valida", 403)
+
+
+@app.get("/admin", response_class=HTMLResponse, include_in_schema=False)
+async def admin_page():
+    return HTMLResponse((STATIC / "admin.html").read_text("utf-8"), headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/admin/api/state", include_in_schema=False)
+async def admin_state(request: Request):
+    return {"enabled": KEYS.admin_enabled, "logged": KEYS.verify("admin", request.cookies.get(apikeys.ADMIN_COOKIE)),
+            "require_key": KEYS.require_key, "permissions": apikeys.PERMISSIONS}
+
+
+@app.post("/admin/api/login", include_in_schema=False)
+async def admin_login(request: Request, password: str = Body(..., embed=True)):
+    if not KEYS.admin_enabled:
+        fail("Area admin disattivata: imposta UPDF_ADMIN_PASSWORD", 404)
+    if request.headers.get("x-requested-with") != "universal-pdf":
+        fail("Richiesta non valida", 403)
+    if not KEYS.login(apikeys.client_ip(request), password):
+        await asyncio.sleep(1)
+        fail("Password sbagliata", 401)
+    resp = JSONResponse({"ok": True})
+    resp.set_cookie(apikeys.ADMIN_COOKIE, KEYS.sign("admin", apikeys.ADMIN_TTL), max_age=apikeys.ADMIN_TTL,
+                    httponly=True, samesite="strict", path="/admin")
+    return resp
+
+
+@app.post("/admin/api/logout", include_in_schema=False)
+async def admin_logout():
+    resp = JSONResponse({"ok": True})
+    resp.delete_cookie(apikeys.ADMIN_COOKIE, path="/admin")
+    return resp
+
+
+@app.get("/admin/api/keys", include_in_schema=False)
+async def keys_list(request: Request):
+    admin_only(request)
+    return {"keys": KEYS.list()}
+
+
+@app.post("/admin/api/keys", include_in_schema=False)
+async def keys_create(request: Request, name: str = Body(...), perms: list[str] = Body(...)):
+    admin_only(request, write=True)
+    key, rec = KEYS.create(name, perms)
+    return {"key": key, **rec}
+
+
+@app.put("/admin/api/keys/{kid}", include_in_schema=False)
+async def keys_update(request: Request, kid: str, name: str | None = Body(None), perms: list[str] | None = Body(None)):
+    admin_only(request, write=True)
+    return KEYS.update(kid, name, perms)
+
+
+@app.delete("/admin/api/keys/{kid}", include_in_schema=False)
+async def keys_delete(request: Request, kid: str):
+    admin_only(request, write=True)
+    KEYS.delete(kid)
+    return {"ok": True}
+
+
+@app.get("/healthz", tags=["Servizio"], summary="Stato del servizio")
 async def healthz():
     return {"ok": True}
 
 
-@app.post("/api/info")
+@app.post("/api/info", summary="Pagine, protezione e dimensione di un PDF", description="Permesso: `info`", **API)
 async def info(file: UploadFile = File(...)):
     job = Job()
     try:
@@ -209,13 +326,13 @@ async def info(file: UploadFile = File(...)):
         except Exception:
             fail("Il file non e' un PDF valido")
         with doc:
-            return {"pages": doc.page_count if not doc.needs_pass else None, "encrypted": doc.needs_pass,
+            return {"pages": doc.page_count if not doc.needs_pass else None, "encrypted": bool(doc.needs_pass),
                     "size": p.stat().st_size}
     finally:
         job.cleanup()
 
 
-@app.post("/api/thumbs")
+@app.post("/api/thumbs", summary="Anteprime delle pagine (JPEG)", description="Permesso: `info`", **API)
 async def thumbs(file: UploadFile = File(...), width: int = Form(160)):
     job = Job()
     try:
@@ -240,7 +357,7 @@ async def thumbs(file: UploadFile = File(...), width: int = Form(160)):
         job.cleanup()
 
 
-@app.post("/api/merge")
+@app.post("/api/merge", summary="Unisci PDF e immagini", description="Permesso: `merge`", **API)
 async def merge(files: list[UploadFile] = File(...)):
     if len(files) < 2:
         fail("Scegli almeno due file da unire")
@@ -264,7 +381,7 @@ async def merge(files: list[UploadFile] = File(...)):
         raise
 
 
-@app.post("/api/split")
+@app.post("/api/split", summary="Dividi o estrai pagine", description="Permesso: `split`", **API)
 async def split(file: UploadFile = File(...), mode: str = Form("ranges"), ranges: str = Form(""),
                 every: int = Form(1), merge_out: bool = Form(False)):
     job = Job()
@@ -304,7 +421,7 @@ async def split(file: UploadFile = File(...), mode: str = Form("ranges"), ranges
         raise
 
 
-@app.post("/api/organize")
+@app.post("/api/organize", summary="Riordina, ruota ed elimina pagine", description="Permesso: `organize`", **API)
 async def organize(file: UploadFile = File(...), pages: str = Form(...)):
     """pages = [[indice_da_0, rotazione_aggiuntiva], ...] nell'ordine finale; le pagine assenti si eliminano."""
     try:
@@ -337,7 +454,7 @@ async def organize(file: UploadFile = File(...), pages: str = Form(...)):
         raise
 
 
-@app.post("/api/rotate")
+@app.post("/api/rotate", summary="Ruota tutte le pagine", description="Permesso: `rotate`", **API)
 async def rotate(file: UploadFile = File(...), angle: int = Form(90)):
     job = Job()
     try:
@@ -365,7 +482,7 @@ GS_LEVELS = {  # livello -> (preset, dpi immagini a colori)
 }
 
 
-@app.post("/api/compress")
+@app.post("/api/compress", summary="Comprimi", description="Permesso: `compress`", **API)
 async def compress(file: UploadFile = File(...), level: str = Form("medium"), gray: bool = Form(False)):
     if level not in GS_LEVELS:
         fail("Livello di compressione sconosciuto")
@@ -433,7 +550,7 @@ def image_doc(path: Path, page: str = "fit", margin: float = 0) -> fitz.Document
     return out
 
 
-@app.post("/api/img2pdf")
+@app.post("/api/img2pdf", summary="Immagini in PDF", description="Permesso: `img2pdf`", **API)
 async def img2pdf(files: list[UploadFile] = File(...), page: str = Form("fit"), margin: float = Form(0)):
     if page not in ("fit", "a4", "letter"):
         fail("Formato pagina sconosciuto")
@@ -469,7 +586,7 @@ def safe_dpi(page: fitz.Page, dpi: int) -> int:
     return max(1, math.floor(dpi * math.sqrt(MAX_PAGE_PX / px)))
 
 
-@app.post("/api/pdf2img")
+@app.post("/api/pdf2img", summary="PDF in immagini", description="Permesso: `pdf2img`", **API)
 async def pdf2img(file: UploadFile = File(...), format: str = Form("png"), dpi: int = Form(150),
                   ranges: str = Form("")):
     if format not in ("png", "jpg"):
@@ -515,7 +632,7 @@ async def pdf2img(file: UploadFile = File(...), format: str = Form("png"), dpi: 
         raise
 
 
-@app.post("/api/protect")
+@app.post("/api/protect", summary="Proteggi con password (AES-256)", description="Permesso: `protect`", **API)
 async def protect(file: UploadFile = File(...), password: str = Form(...), owner: str = Form(""),
                   allow_print: bool = Form(True), allow_copy: bool = Form(True), allow_edit: bool = Form(False)):
     if len(password) < 1:
@@ -548,7 +665,7 @@ async def protect(file: UploadFile = File(...), password: str = Form(...), owner
         raise
 
 
-@app.post("/api/unlock")
+@app.post("/api/unlock", summary="Togli la password", description="Permesso: `protect`", **API)
 async def unlock(file: UploadFile = File(...), password: str = Form("")):
     job = Job()
     try:
@@ -581,7 +698,7 @@ def hex_color(s: str) -> tuple[float, float, float]:
     return tuple(int(v[i:i + 2], 16) / 255 for i in (0, 2, 4))
 
 
-@app.post("/api/stamp")
+@app.post("/api/stamp", summary="Numeri di pagina e filigrana", description="Permesso: `stamp`", **API)
 async def stamp(file: UploadFile = File(...),
                 numbers: bool = Form(False), num_pos: str = Form("bottom-center"), num_fmt: str = Form("{n}"),
                 num_start: int = Form(1), num_size: float = Form(11), num_skip_first: bool = Form(False),
