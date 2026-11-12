@@ -32,13 +32,12 @@ The interface is in English and Italian: it follows the browser language and can
 
 | Group | Tools |
 |---|---|
-| Organize | Merge (PDFs and images together), Split (by ranges or every N pages), Extract pages, Reorder / rotate / delete with page thumbnails, Rotate all pages |
-| Optimize | Compress (three levels, optional grayscale) with Ghostscript; the original is returned if compression would make it bigger |
-| Convert | Images → PDF (fit, A4 or Letter, with margins), PDF → JPG/PNG at a chosen DPI |
-| Security | Protect with a password (AES-256), Unlock |
-| Edit | Page numbers (position, format such as `Page {n} of {tot}`, start number, skip first page) and text watermark (size, opacity, angle, colour), also on rotated pages |
-
-> The user interface is in Italian. The API and this documentation are language-independent.
+| Organize | Merge (PDFs and images together), Split (by ranges or every N pages), Extract pages, Reorder / rotate / delete with page thumbnails, Rotate pages |
+| Optimize and convert | Compress (three levels, optional grayscale; never bigger than the original), Images → PDF, PDF → JPG/PNG, **OCR** (Italian and English, with OCRmyPDF and Tesseract), **PDF/A-2** for archiving, **Scanner** (phone photos: edges found, page straightened, colour/grey/black and white), **Word, Excel, PowerPoint ↔ PDF** through an optional [Universal Converter](https://github.com/EmaLau/universal-converter) |
+| Security | Protect with a password (AES-256, random owner password), Unlock |
+| Edit and sign | Page numbers, **header and footer** with `{n}`, `{tot}`, `{date}`, `{file}`, text watermark and **image/logo watermark**; **Sign** (draw it or use an image, place it on the page); **Fill forms** and optionally flatten them; **Annotate** (highlighter, boxes, text, notes, arrows, freehand); **Redact** (text really removed, presets for email, phone, IBAN, Italian tax code, card numbers, or areas drawn on the page); **Metadata** and removal of hidden data |
+| Advanced | **Compare** two PDFs (report with changed words and pages side by side, differences in red), **Crop and resize** (all pages to A4, fixed margins, automatic trim), **N-up and booklet**, **Extract images and text**, **Repair** damaged PDFs, **Batch and chains** (several operations in a row, also on many files, result as ZIP; chains can be saved) |
+| Integrations | API keys like Gokapi, **Nextcloud app** (right click → *Strumenti PDF*), Nextcloud **magic folder** that processes PDFs by itself (both optional) |
 
 ## Quick start
 
@@ -76,6 +75,10 @@ Copy `.env.example` to `.env` and change what you need.
 | `UPDF_ADMIN_LOGIN` | `true` | Initial value of the *admin password* switch. `false` = the `/admin` page opens without a password, so anyone who can reach the service can manage keys. The switch on `/admin` overrides it and is remembered |
 | `API_REQUIRE_KEY` | `false` | Initial value of the *key required* switch: `true` = API calls made outside the web page need an API key. The switch on the `/admin` page overrides it and is remembered |
 | `DATA_DIR` | `/work/data` | Where API keys (only their SHA-256 hashes) and the signing secret are stored |
+| `CONVERTER_URL` | empty | Address of a [Universal Converter](https://github.com/EmaLau/universal-converter) for Word, Excel, PowerPoint ↔ PDF (e.g. `http://converter:8080`). Empty = those tools are hidden |
+| `CONVERTER_API_KEY` | empty | Sent as `apikey` to the converter, if it needs one |
+| `NEXTCLOUD_URL` / `NEXTCLOUD_USER` / `NEXTCLOUD_PASSWORD` | empty | Turn on the [magic folder](#nextcloud) (use an app password) |
+| `NEXTCLOUD_MAGIC_DIR` / `NEXTCLOUD_POLL_SECONDS` | `Universal-PDF` / `60` | Magic folder name and how often it is checked |
 | `UPDF_UID` / `UPDF_GID` | `1000` | User that runs the service inside the container |
 | `TZ` | `Europe/Rome` | Time zone |
 
@@ -99,6 +102,8 @@ A wrong or revoked key gets `401`, a key without the permission for that tool ge
 
 ### Endpoints
 
+The complete reference, with examples for curl, Python and iPhone Shortcuts, is in **[docs/api.md](docs/api.md)**; the live one is at `/apidocs`.
+
 All endpoints are `POST` with `multipart/form-data`. They answer with the resulting file, or with JSON `{"detail": "..."}` and an HTTP error code.
 
 | Endpoint | Fields | Result |
@@ -114,7 +119,21 @@ All endpoints are `POST` with `multipart/form-data`. They answer with the result
 | `/api/pdf2img` | `file`, `format` (`png`, `jpg`), `dpi`, `ranges` | ZIP, or an image for a single page. Pages that would exceed `MAX_PAGE_MPX` are rendered at a lower DPI and counted in the `X-Dpi-Reduced` header |
 | `/api/protect` | `file`, `password`, `owner`, `allow_print`, `allow_copy`, `allow_edit` | PDF (AES-256). Without `owner`, a random owner password is generated, so the permissions are enforced |
 | `/api/unlock` | `file`, `password` | PDF |
-| `/api/stamp` | `file`, `numbers`, `num_pos`, `num_fmt`, `num_start`, `num_size`, `num_skip_first`, `watermark`, `wm_size`, `wm_opacity`, `wm_angle`, `wm_color` | PDF |
+| `/api/stamp` | `file`, `numbers`, `num_pos`, `num_fmt`, `num_start`, `num_size`, `num_skip_first`, `watermark`, `wm_size`, `wm_opacity`, `wm_angle`, `wm_color`, `header`, `footer`, `hf_size`, `wm_image`, `wm_image_scale` | PDF |
+| `/api/ocr` | `file`, `lang` (`ita`, `eng`, `ita+eng`), `force`, `deskew` | PDF with a text layer |
+| `/api/pdfa` | `file`, `ocr_text`, `lang` | PDF/A-2 |
+| `/api/sign` | `file`, `image`, `page`, `box` | PDF |
+| `/api/annotate` | `file`, `items` (JSON), `flatten` | PDF |
+| `/api/forms` · `/api/fill` | `file` · `file`, `values` (JSON), `flatten` | fields as JSON · PDF |
+| `/api/redact` | `file`, `terms`, `presets`, `areas` (JSON), `regex`, `clean_metadata` | PDF, header `X-Redactions` |
+| `/api/compare` | `file_a`, `file_b` | PDF report, header `X-Pages-Changed` |
+| `/api/pages` | `file`, `mode` (`resize`, `crop`, `trim`), `paper`, margins | PDF |
+| `/api/nup` | `file`, `mode` (`nup`, `booklet`), `n`, `paper` | PDF |
+| `/api/extract` | `file`, `kind` (`images`, `text`), `pages` | ZIP or TXT |
+| `/api/repair` · `/api/metadata` | `file` · `file`, `clean`, `title`, `author`, … | PDF |
+| `/api/scan` | `files` (photos), `mode` (`color`, `gray`, `bw`), `paper` | PDF |
+| `/api/office` | `file`, `target` (`pdf`, `docx`, `odt`, `xlsx`, `pptx`, `txt`) | converted file (needs `CONVERTER_URL`) |
+| `/api/chain` | `files`, `steps` (JSON) or `chain` (saved chain) | PDF, or ZIP for several files |
 
 `GET /healthz` returns `{"ok": true}`.
 
@@ -125,6 +144,22 @@ curl -F files=@a.pdf -F files=@b.pdf -o merged.pdf http://localhost:8080/api/mer
 # compress
 curl -F file=@scan.pdf -F level=high -o smaller.pdf http://localhost:8080/api/compress
 ```
+
+## Nextcloud
+
+Both integrations are optional; the service works without Nextcloud.
+
+**Right click → Strumenti PDF.** The app in [`nextcloud-app/`](nextcloud-app) (Nextcloud 30–36) adds a *Strumenti PDF* submenu to PDF files: merge the selected files, compress, OCR, number pages, rotate, protect or unlock, remove hidden data, PDF/A, repair, and every saved chain. The result is saved next to the original.
+
+```bash
+cp -r nextcloud-app /path/to/nextcloud/custom_apps/strumentipdf
+occ app:enable strumentipdf
+occ config:app:set strumentipdf pdf_url --value=http://universal-pdf-address:8080
+occ config:app:set strumentipdf api_key --value=updf_...      # if the server requires a key
+occ config:system:set allow_local_remote_servers --value=true --type=boolean   # if the address is on the local network
+```
+
+**Magic folder.** With `NEXTCLOUD_URL`, `NEXTCLOUD_USER` and `NEXTCLOUD_PASSWORD` (an app password) the server watches the folder `Universal-PDF/` of that user. Every saved chain with *magic folder* switched on in `/admin` gets a subfolder: drop a PDF in `Universal-PDF/<chain>/` and within a minute the result appears in `Fatti/`, the original moves to `Originali/`, and a file that cannot be processed goes to `Errori/` with a `.txt` explaining why.
 
 ## How it works
 
@@ -143,10 +178,18 @@ server/
   Dockerfile       Debian trixie + Python, PyMuPDF, pikepdf, Ghostscript
   server.py        API and page
   apikeys.py       API keys and /admin login
+  ops.py           the PDF operations, shared by the API, chains and the magic folder
+  chains.py        saved chains
+  magic.py         Nextcloud magic folder (WebDAV)
+  converter.py     Office <-> PDF through Universal Converter
+  i18n.py          English translations of the error messages
   static/          the web page (index.html) and the admin page (admin.html)
   selftest.py      real test of every tool against the running server
   requirements.txt pinned Python dependencies
+nextcloud-app/     the Nextcloud app (right click -> Strumenti PDF)
+docs/api.md        API reference and iPhone Shortcuts guide
 tests/
+  test_features.py tests of the phase-4 tools, chains, Office and magic folder (with fakes)
   test_api.py      API tests with FastAPI's TestClient (no container)
   test_ui.py       every tool driven from the page in headless Chromium (Playwright)
 .github/workflows/ci.yml   pytest + Docker build + selftest on every push
@@ -174,6 +217,7 @@ The same tests run in GitHub Actions, together with a Docker build and the selft
 - [x] Limit on parallel heavy jobs
 - [x] pytest tests, browser test of the page, CI
 - [x] English or bilingual interface, security headers
+- [x] OCR, signature, forms, annotations, redaction, compare, crop/resize, n-up/booklet, image watermark and header/footer, repair, PDF/A, metadata, extract, scanner, batch and chains, Office via the converter, Nextcloud app and magic folder, API guide
 - [ ] Review the name and make sure nothing is copied from the site that inspired it
 
 ## License

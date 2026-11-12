@@ -21,11 +21,12 @@ L'interfaccia è in italiano e in inglese: segue la lingua del browser e si camb
 
 | Gruppo | Strumenti |
 |---|---|
-| Organizza | Unisci (anche PDF e immagini insieme), Dividi (per intervalli o ogni N pagine), Estrai pagine, Riordina / ruota / elimina con le miniature, Ruota tutte le pagine |
-| Ottimizza | Comprimi (tre livelli, scala di grigi facoltativa) con Ghostscript; se il risultato sarebbe più grande, restituisce l'originale |
-| Converti | Immagini → PDF (adatta, A4 o Letter, con margini), PDF → JPG/PNG ai DPI scelti |
+| Organizza | Unisci (anche PDF e immagini insieme), Dividi, Estrai pagine, Riordina / ruota / elimina con le miniature |
+| Ottimizza e converti | Comprimi, Immagini → PDF, PDF → JPG/PNG, **OCR** (italiano e inglese), **PDF/A-2**, **Scanner** da telefono (bordi trovati e pagina raddrizzata), **Word, Excel, PowerPoint ↔ PDF** tramite il [Convertitore universale](https://github.com/EmaLau/universal-converter), facoltativo |
 | Sicurezza | Proteggi con password (AES-256), Sblocca |
-| Modifica | Numeri di pagina (posizione, formato come `Pagina {n} di {tot}`, numero iniziale, salta la prima) e filigrana di testo (dimensione, opacità, angolo, colore), anche su pagine ruotate |
+| Modifica e firma | Numeri di pagina, **intestazione e piè di pagina** con `{n}`, `{tot}`, `{date}`, `{file}`, filigrana di testo e **logo**; **Firma** disegnata o da immagine; **Compila moduli**; **Annota**; **Oscura** (il testo viene tolto davvero); **Metadati** e pulizia dei dati nascosti |
+| Avanzati | **Confronta** due PDF, **Ritaglia e ridimensiona** (tutto in A4, margini, ritaglio automatico), **Più pagine per foglio e opuscolo**, **Estrai immagini e testo**, **Ripara**, **Più file e catene** (anche salvate) |
+| Integrazioni | Chiavi API come in Gokapi, **app Nextcloud** (tasto destro → *Strumenti PDF*), **cartella magica** in Nextcloud (facoltative). Guida all'API e ai Comandi rapidi di iPhone in [docs/api.md](docs/api.md) |
 
 ## Avvio rapido
 
@@ -58,6 +59,8 @@ Copia `.env.example` in `.env` e cambia quello che serve.
 | `UPDF_ADMIN_LOGIN` | `true` | Valore iniziale dell'interruttore *password per l'area admin*. `false` = la pagina `/admin` si apre senza password, quindi chiunque raggiunga il servizio gestisce le chiavi. L'interruttore nella pagina `/admin` ha la precedenza e viene ricordato |
 | `API_REQUIRE_KEY` | `false` | Valore iniziale dell'interruttore *chiave obbligatoria*: `true` = le chiamate fatte fuori dalla pagina web richiedono una chiave. L'interruttore nella pagina `/admin` ha la precedenza e viene ricordato |
 | `DATA_DIR` | `/work/data` | Dove si salvano le chiavi API (solo l'hash SHA-256) e il segreto per firmare i cookie |
+| `CONVERTER_URL` | vuota | Indirizzo del Convertitore universale per Word, Excel, PowerPoint ↔ PDF. Vuota = strumenti nascosti |
+| `NEXTCLOUD_URL` / `NEXTCLOUD_USER` / `NEXTCLOUD_PASSWORD` | vuote | Attivano la cartella magica (usa una password per le app); `NEXTCLOUD_MAGIC_DIR` e `NEXTCLOUD_POLL_SECONDS` per nome e frequenza |
 | `MAX_UPLOAD_MB` | `0` | Dimensione massima di ogni file caricato; `0` = nessun limite |
 | `MAX_OUTPUT_MB` | `4096` | Dimensione massima dei risultati di una richiesta (es. tutte le immagini di *PDF in immagini*) |
 | `MAX_PARALLEL` | `2` | Lavori pesanti eseguiti insieme; gli altri aspettano il loro turno |
