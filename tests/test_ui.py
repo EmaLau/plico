@@ -209,4 +209,5 @@ def test_admin_chains(page, live_server):
     page.check("[data-op=stamp]")
     page.click("#chainForm button[type=submit]")
     page.locator("#chains .key", has_text="Prova UI").wait_for()
+    assert page.locator("#chains .key").count() == n + 1
     assert "Comprimi → Numeri di pagina" in page.locator("#chains").text_content()

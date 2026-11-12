@@ -13,7 +13,6 @@ import pytest
 import chains
 import converter
 import magic
-import ops
 import server
 from conftest import make_pdf, make_png, pages
 

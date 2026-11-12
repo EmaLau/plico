@@ -1,6 +1,6 @@
 """Prova tutti gli strumenti contro il server in esecuzione: docker exec <container> python3 /app/selftest.py
 Salva i risultati in /work/selftest/ per poterli guardare."""
-import io, json, os, sys, uuid, urllib.request, zipfile
+import io, json, os, sys, time, uuid, urllib.request, zipfile
 from pathlib import Path
 
 import fitz
@@ -248,7 +248,13 @@ if admin_pw:
     check("revoked key -> 401", s == 200 and s2 == 401)
 else:
     print("SKIP admin / api keys  (UPDF_ADMIN_PASSWORD non impostata)")
-left = list((WORK / "upd").glob("*")) if (WORK / "upd").exists() else []
+# le cartelle dei file inviati si cancellano subito DOPO la risposta (BackgroundTask):
+# si aspetta qualche secondo prima di considerarle dimenticate
+for _ in range(50):
+    left = list((WORK / "upd").glob("*")) if (WORK / "upd").exists() else []
+    if not left:
+        break
+    time.sleep(0.1)
 check("no leftover temp files", not left, str(left))
 print("TUTTO OK" if ok else "CI SONO ERRORI")
 sys.exit(0 if ok else 1)
