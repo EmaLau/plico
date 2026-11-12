@@ -4,9 +4,7 @@
 
 🇬🇧 **English** · 🇮🇹 [Italiano](README.it.md)
 
-> **Work in progress — private repository.** It runs on one homelab; a few limits must be fixed before publishing. See [To do before publishing](#to-do-before-publishing).
-
-**Self-hosted PDF tools on a single web page.** Merge, split, extract, reorder, rotate, delete pages, compress, convert between PDF and images, protect or unlock with a password, add page numbers and watermarks. Everything runs on your own server: each request works in a temporary folder that is deleted as soon as the result has been sent, so **no file stays on the server**.
+**Self-hosted PDF tools on a single web page.** Merge, split, reorder, compress, convert, OCR, sign, fill forms, annotate, redact, compare, protect and much more: 27 tools, plus an API, saved chains and a Nextcloud app. Everything runs on your own server: each request works in a temporary folder that is deleted as soon as the result has been sent, so **no file stays on the server**.
 
 ![Docker](https://img.shields.io/badge/docker-compose-2496ED?logo=docker&logoColor=white)
 ![Python](https://img.shields.io/badge/python-3.11+-3776AB?logo=python&logoColor=white)
@@ -17,12 +15,8 @@
 
 <p align="center">
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-home-dark.png">
-  <img src="docs/screenshot-home-light.png" alt="Home page with all the tools" width="800">
-</picture>
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-tool-dark.png">
-  <img src="docs/screenshot-tool-light.png" alt="Reorder pages: thumbnails that can be dragged" width="800">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-tools-dark.png">
+  <img src="docs/screenshot-tools-light.png" alt="The home page with all 27 tools" width="800">
 </picture>
 </p>
 
@@ -103,7 +97,7 @@ A wrong or revoked key gets `401`, a key without the permission for that tool ge
 
 ### Endpoints
 
-The complete reference, with examples for curl, Python and iPhone Shortcuts, is in **[docs/api.md](docs/api.md)**; the live one is at `/apidocs`. Everything else (installation, admin page, chains, Nextcloud, internals, security, maintenance) is in the **[complete documentation](docs/documentation.md)**.
+The complete reference, with examples for curl, Python and iPhone Shortcuts, is in **[docs/api.md](docs/api.md)**; the live one is at `/apidocs`. Everything else (installation, admin page, chains, Nextcloud, internals, security, maintenance) is in the **[complete documentation](docs/documentation.md)**, also served by the app at **`/docs`** (the *Documentation* button at the top of the page).
 
 All endpoints are `POST` with `multipart/form-data`. They answer with the resulting file, or with JSON `{"detail": "..."}` and an HTTP error code.
 
@@ -209,18 +203,6 @@ python -m pytest                        # needs Ghostscript installed for the co
 ```
 
 The same tests run in GitHub Actions, together with a Docker build and the selftest inside the container.
-
-## To do before publishing
-
-- [x] Cap the pixel size of each page in PDF → images: a tiny PDF with a huge page can exhaust the container memory
-- [x] Random owner password when none is given
-- [x] `/api/info`: answer 413, not 400, for files over the limit; fix the `/api/thumbs` response in the docs (`img`, `rot`)
-- [x] Uploads are spooled to the data volume, not to the container filesystem; limit on output size
-- [x] Limit on parallel heavy jobs
-- [x] pytest tests, browser test of the page, CI
-- [x] English or bilingual interface, security headers
-- [x] OCR, signature, forms, annotations, redaction, compare, crop/resize, n-up/booklet, image watermark and header/footer, repair, PDF/A, metadata, extract, scanner, batch and chains, Office via the converter, Nextcloud app and magic folder, API guide
-- [x] New name (*Plico*, Italian for a bundle of documents), checked that no text or code is copied from other PDF tools
 
 ## License
 

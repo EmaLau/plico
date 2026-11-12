@@ -62,12 +62,12 @@ Il servizio ascolta solo su `127.0.0.1`. Per raggiungerlo da altri dispositivi i
 ## Con Docker, senza Compose
 
 ```bash
-docker build -t plico server
+docker build -t plico -f server/Dockerfile .
 docker run -d --name plico -p 127.0.0.1:8080:8080 -v plico-work:/work \
   -e PLICO_ADMIN_PASSWORD=cambiami plico
 ```
 
-`--build-arg UID=… --build-arg GID=…` scelgono l'utente che esegue il servizio (predefinito 1000). Deve essere il proprietario del volume `/work`.
+Il contesto di build è la radice del repository, perché l'immagine costruisce anche le pagine della documentazione da `docs/`. `--build-arg UID=… --build-arg GID=…` scelgono l'utente che esegue il servizio (predefinito 1000). Deve essere il proprietario del volume `/work`.
 
 ## Senza Docker (sviluppo)
 
@@ -249,6 +249,10 @@ browser / script ──► guard (middleware) ──► endpoint ──► carte
 
 I testi della pagina sono in `server/static/i18n.js` (italiano e inglese). Gli errori dell'API sono scritti in italiano nel codice e tradotti da `server/i18n.py`, che riconosce messaggi fissi e schemi (es. `File troppo grande (massimo {n} MB)`). Un messaggio che manca dalla tabella viene mandato così com'è, in italiano.
 
+## La pagina della documentazione
+
+Questa guida si apre anche dall'app, su `/docs` (in italiano o in inglese, secondo `?lang=` o la lingua del browser), con il pulsante *Documentazione* in alto nella pagina. Durante la build dell'immagine un primo stadio con pandoc trasforma `docs/documentazione.md` e `docs/documentation.md` in `docs-it.html` e `docs-en.html`, con `docs/web/build.sh`, `template.html` e `style.html`; pandoc non finisce nell'immagine finale. Senza quei file (per esempio avviando il server dai sorgenti) `/docs` risponde `404`. Per generarli in locale: `sh docs/web/build.sh server/static`.
+
 # Sicurezza e privacy
 
 - **La pagina non ha login.** Chiunque raggiunga il servizio può usarlo. Ascolta solo su `127.0.0.1`. Aprilo solo in una rete fidata (casa, VPN), oppure dietro un reverse proxy con autenticazione. Non esporlo direttamente su Internet.
@@ -316,7 +320,8 @@ server/
   converter.py     client del Convertitore universale
   i18n.py          traduzioni in inglese degli errori dell'API
   selftest.py      controlli sul server in funzione
-  static/          index.html, admin.html, i18n.js
+  static/          index.html, admin.html, i18n.js (e le pagine generate docs-it.html, docs-en.html)
+docs/              questa guida, il riferimento dell'API, docs/web/ (template e script della pagina /docs)
 nextcloud-app/     app Nextcloud (controller e client PHP, script della pagina)
 tests/             pytest: test_api.py, test_features.py, test_ui.py
 ```

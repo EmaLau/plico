@@ -4,3 +4,6 @@ __pycache__/
 .venv/
 .pytest_cache/
 test-results/
+
+# pagine /docs generate da docs/web/build.sh
+server/static/docs-*.html

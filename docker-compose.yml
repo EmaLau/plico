@@ -3,7 +3,8 @@
 services:
   plico:
     build:
-      context: ./server
+      context: .
+      dockerfile: server/Dockerfile
       args:
         UID: ${PLICO_UID:-1000}
         GID: ${PLICO_GID:-1000}

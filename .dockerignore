@@ -1,0 +1,11 @@
+.git
+.github
+.venv
+**/__pycache__
+**/.DS_Store
+.pytest_cache
+test-results
+tests
+nextcloud-app
+server/static/docs-*.html
+.env

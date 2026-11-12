@@ -32,6 +32,9 @@ header.top{display:flex;align-items:center;justify-content:space-between;gap:12p
 .brand .logo{width:34px;height:34px;border-radius:9px;background:var(--accent);display:grid;place-items:center;color:#fff}
 .pill{font-size:13px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 12px;display:flex;align-items:center;gap:6px}
 .pill b{color:var(--ok)}
+a.pill.docs{color:var(--text);text-decoration:none;font-weight:600}
+a.pill.docs:hover{border-color:var(--accent);color:var(--accent)}
+@media (max-width:640px){a.pill.docs{font-size:0;gap:0;padding:7px 9px}}
 h1{font-size:clamp(26px,4.5vw,40px);line-height:1.1;margin:0 0 8px;letter-spacing:-.015em}
 .lead{color:var(--muted);margin:0 0 26px;max-width:640px}
 .drop-hero{border:2px dashed var(--line);border-radius:var(--radius);background:var(--surface);padding:28px 16px;text-align:center;margin-bottom:28px;cursor:pointer;transition:border-color .15s,background .15s}
@@ -169,7 +172,7 @@ footer{margin-top:44px;color:var(--muted);font-size:13px;text-align:center}
 <main>
   <header class="top">
     <a class="brand" href="#"><span class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg></span>Plico</a>
-    <div class="topr"><span class="lang" data-lang-switch></span><span class="pill"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Tutto <b>in locale</b></span></div>
+    <div class="topr"><a class="pill docs" id="docsLink" href="docs"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/><path d="M9 7h6"/></svg>Documentazione</a><span class="lang" data-lang-switch></span><span class="pill"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Tutto <b>in locale</b></span></div>
   </header>
 
   <!-- HOME -->
@@ -915,6 +918,8 @@ function showDone(blob, name, before, after, total) {
 }
 $("#chips").onclick = e => { const b = e.target.closest("button"); if (!b) return; pending = [resultFile]; location.hash = b.dataset.t; };
 $("#again").onclick = () => reset();
+
+$("#docsLink").href = "docs?lang=" + PLICO_I18N.lang;
 
 fetch("api/features").then(r => r.json()).then(f => {
   FEAT = f;

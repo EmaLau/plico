@@ -88,6 +88,19 @@ def test_home_lists_all_tools(page):
     assert page.locator("a.tool").count() >= 23  # 27 strumenti, meno quelli facoltativi non attivi
 
 
+def test_docs_button(page):
+    """Il pulsante Documentazione porta a /docs nella lingua della pagina (se le pagine sono state generate)."""
+    import server
+    href = page.get_attribute("#docsLink", "href")
+    assert href in ("docs?lang=it", "docs?lang=en")
+    if not (server.STATIC / "docs-it.html").exists():
+        pytest.skip("pagine /docs non generate (docs/web/build.sh)")
+    page.click("#docsLink")
+    page.wait_for_selector("#toc a")
+    page.click("#toc a >> nth=3")  # lo script dell'indice gira (CSP con il suo hash): niente errori JavaScript
+    assert page.title().startswith("Plico — Docum")
+
+
 @pytest.mark.parametrize("locale,title,button", [("en-US", "All the PDF tools, at home", "Merge PDF"),
                                                  ("it-IT", "Tutti gli strumenti PDF, in casa", "Unisci PDF")])
 def test_language_from_browser(browser, live_server, locale, title, button):

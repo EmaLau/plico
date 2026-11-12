@@ -62,12 +62,12 @@ By default the service listens only on `127.0.0.1`. To reach it from other devic
 ## With Docker, without Compose
 
 ```bash
-docker build -t plico server
+docker build -t plico -f server/Dockerfile .
 docker run -d --name plico -p 127.0.0.1:8080:8080 -v plico-work:/work \
   -e PLICO_ADMIN_PASSWORD=change-me plico
 ```
 
-`--build-arg UID=… --build-arg GID=…` choose the user that runs the service (default 1000). It must own the `/work` volume.
+The build context is the repository root, because the image also builds the documentation pages from `docs/`. `--build-arg UID=… --build-arg GID=…` choose the user that runs the service (default 1000). It must own the `/work` volume.
 
 ## Without Docker (development)
 
@@ -249,6 +249,10 @@ browser / script ──► guard (middleware) ──► endpoint ──► Job f
 
 The page texts are in `server/static/i18n.js` (Italian and English). API errors are written in Italian in the code and translated by `server/i18n.py`, which matches fixed messages and patterns (e.g. `File troppo grande (massimo {n} MB)`). A message missing from the table is sent as it is, in Italian.
 
+## The documentation page
+
+This guide is also served by the app at `/docs` (Italian or English, from `?lang=` or the browser language), opened with the *Documentation* button at the top of the page. While the image is built, a first stage with pandoc turns `docs/documentazione.md` and `docs/documentation.md` into `docs-it.html` and `docs-en.html` with `docs/web/build.sh`, `template.html` and `style.html`; pandoc does not end up in the final image. Without those files (e.g. running the server from the sources) `/docs` answers `404`. To build them locally: `sh docs/web/build.sh server/static`.
+
 # Security and privacy
 
 - **No login on the page.** Anyone who can reach the service can use it. By default it listens only on `127.0.0.1`. Open it only on a trusted network (home, VPN), or behind a reverse proxy with authentication. Do not expose it directly to the Internet.
@@ -316,7 +320,8 @@ server/
   converter.py     client for Universal Converter
   i18n.py          English translations of API errors
   selftest.py      checks against the running server
-  static/          index.html, admin.html, i18n.js
+  static/          index.html, admin.html, i18n.js (and the generated docs-it.html, docs-en.html)
+docs/              this guide, the API reference, docs/web/ (template and script of the /docs page)
 nextcloud-app/     Nextcloud app (PHP controller and client, page script)
 tests/             pytest: test_api.py, test_features.py, test_ui.py
 ```

@@ -335,3 +335,21 @@ def test_cross_site_admin_login_rejected(client):
 def test_i18n_script_served(client):
     r = client.get("/static/i18n.js")
     assert r.status_code == 200 and "PLICO_I18N" in r.text
+
+
+def test_docs_page(client):
+    """/docs: pagina generata da docs/web/build.sh (in CI e nell'immagine); senza, 404 con un messaggio chiaro."""
+    import base64, hashlib, re
+    if not (server.STATIC / "docs-en.html").exists():
+        r = client.get("/docs?lang=en")
+        assert r.status_code == 404 and "build.sh" in r.json()["detail"]
+        return
+    r = client.get("/docs?lang=en")
+    assert r.status_code == 200 and "<title>Plico — Documentation</title>" in r.text
+    assert 'id="toc"' in r.text and "docs?lang=it" in r.text
+    script = re.search(r"<script>(.*?)</script>", r.text, re.S).group(1)
+    digest = base64.b64encode(hashlib.sha256(script.encode()).digest()).decode()
+    assert digest in r.headers["content-security-policy"]
+    r = client.get("/docs", headers={"Accept-Language": "it-IT,it;q=0.9"})
+    assert "<title>Plico — Documentazione</title>" in r.text
+    assert "https://github.com/EmaLau/plico/blob/main/docs/api.md" in r.text

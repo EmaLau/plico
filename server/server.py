@@ -157,7 +157,9 @@ def _inline_hashes(*pages: str) -> str:
     return " ".join(out)
 
 
-CSP_PAGE = ("default-src 'self'; script-src 'self' " + _inline_hashes("index.html", "admin.html") +
+# le pagine /docs (docs-it.html, docs-en.html) le genera docs/web/build.sh durante la build dell'immagine
+DOC_PAGES = sorted(p.name for p in STATIC.glob("docs-*.html"))
+CSP_PAGE = ("default-src 'self'; script-src 'self' " + _inline_hashes("index.html", "admin.html", *DOC_PAGES) +
             "; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; "
             "base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
 # la documentazione Swagger carica i suoi file da jsDelivr e ha uno script nella pagina
@@ -250,6 +252,17 @@ def admin_only(request: Request, write: bool = False):
 @app.get("/admin", response_class=HTMLResponse, include_in_schema=False)
 async def admin_page():
     return HTMLResponse((STATIC / "admin.html").read_text("utf-8"), headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/docs", response_class=HTMLResponse, include_in_schema=False)
+async def docs_page(request: Request, lang: str = ""):
+    """Documentazione completa, generata dai Markdown di docs/ (italiano o inglese)."""
+    if lang not in ("it", "en"):
+        lang = i18n.pick(request.headers.get("accept-language"))
+    page = STATIC / f"docs-{lang}.html"
+    if not page.exists():
+        fail("Documentazione non generata: vedi docs/web/build.sh", 404)
+    return HTMLResponse(page.read_text("utf-8"), headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/admin/api/state", include_in_schema=False)

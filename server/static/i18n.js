@@ -8,7 +8,7 @@
 const PLICO_I18N = (() => {
   const EN = {
     // intestazione e home
-    "Tutto": "Runs", "in locale": "locally",
+    "Tutto": "Runs", "in locale": "locally", "Documentazione": "Documentation",
     "Tutti gli strumenti PDF, in casa": "All the PDF tools, at home",
     "Unisci, dividi, comprimi, converti e proteggi i tuoi PDF. Tutto gira sul tuo server: i file non vanno su internet e vengono cancellati appena hai scaricato il risultato.":
       "Merge, split, compress, convert and protect your PDFs. Everything runs on your own server: files never go to the Internet and are deleted as soon as you download the result.",

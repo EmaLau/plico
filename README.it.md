@@ -4,14 +4,12 @@
 
 🇬🇧 [English](README.md) · 🇮🇹 **Italiano**
 
-> **Lavori in corso — repository privato.** Gira su un homelab; alcuni limiti vanno sistemati prima di pubblicarlo. L'elenco è nel [README in inglese](README.md#to-do-before-publishing).
-
-**Strumenti PDF self-hosted in una sola pagina web.** Unisci, dividi, estrai, riordina, ruota, elimina pagine, comprimi, converti tra PDF e immagini, proteggi o sblocca con password, aggiungi numeri di pagina e filigrane. Tutto gira sul tuo server: ogni richiesta lavora in una cartella temporanea che viene cancellata appena il risultato è stato inviato, quindi **sul server non resta nessun file**.
+**Strumenti PDF self-hosted in una sola pagina web.** Unisci, dividi, riordina, comprimi, converti, OCR, firma, compila moduli, annota, oscura, confronta, proteggi e molto altro: 27 strumenti, più un'API, catene salvate e un'app per Nextcloud. Tutto gira sul tuo server: ogni richiesta lavora in una cartella temporanea che viene cancellata appena il risultato è stato inviato, quindi **sul server non resta nessun file**.
 
 <p align="center">
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-home-dark.png">
-  <img src="docs/screenshot-home-light.png" alt="Pagina iniziale con tutti gli strumenti" width="800">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-tools-dark.png">
+  <img src="docs/screenshot-tools-light.png" alt="La pagina iniziale con tutti i 27 strumenti" width="800">
 </picture>
 </p>
 
@@ -85,7 +83,7 @@ La pagina web non ha bisogno della chiave. Con l'interruttore *Chiave obbligator
 
 ## Documentazione
 
-La guida completa in italiano (installazione, pagina admin, catene, Nextcloud, funzionamento interno, sicurezza, manutenzione, sviluppo e componenti da riusare in altri progetti) è in **[docs/documentazione.md](docs/documentazione.md)**; il riferimento dell'API è in [docs/api.md](docs/api.md).
+La guida completa in italiano (installazione, pagina admin, catene, Nextcloud, funzionamento interno, sicurezza, manutenzione, sviluppo e componenti da riusare in altri progetti) è in **[docs/documentazione.md](docs/documentazione.md)**, e la stessa guida si apre dall'app su **`/docs`** (pulsante *Documentazione* in alto nella pagina); il riferimento dell'API è in [docs/api.md](docs/api.md).
 
 ## Licenza
 

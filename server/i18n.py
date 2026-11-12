@@ -9,6 +9,7 @@ import re
 
 _EN: list[tuple[str, str]] = [
     (r"Errore durante l'elaborazione del file", "Error while processing the file"),
+    (r"Documentazione non generata: vedi docs/web/build.sh", "Documentation not built: see docs/web/build.sh"),
     (r"Il file non e' un PDF valido", "The file is not a valid PDF"),
     (r"Il PDF e' protetto da password: sbloccalo prima con 'Proteggi / Sblocca'",
      "The PDF is password protected: unlock it first with 'Protect / Unlock'"),

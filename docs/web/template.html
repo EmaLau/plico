@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="$lang$">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>$pagetitle$</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23e5322d'/%3E%3Cpath d='M13 5H9a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9z M13 5v4h4' stroke='white' stroke-width='1.8' fill='none' stroke-linejoin='round'/%3E%3C/svg%3E">
+$for(header-includes)$
+$header-includes$
+$endfor$
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="./">
+    <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="var(--accent)"/><path d="M13 5H9a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9z M13 5v4h4" stroke="#fff" stroke-width="1.8" fill="none" stroke-linejoin="round"/></svg>
+    Plico
+  </a>
+  <span class="sep">/</span>
+  <span class="crumb">$crumb$</span>
+  <span class="sp"></span>
+  <a class="langlink" href="docs?lang=$otherlang$" hreflang="$otherlang$">$otherlabel$</a>
+  <a class="cta" href="./">$cta$</a>
+</header>
+<div class="layout">
+  <aside class="side">
+    <details class="toc" id="toc" open>
+      <summary>$tocname$</summary>
+      $table-of-contents$
+    </details>
+  </aside>
+  <main class="doc">
+    <div class="hero">
+      <p class="eyebrow">$crumb$</p>
+      <h1 class="title">Plico</h1>
+      <p class="subtitle">$subtitle$</p>
+    </div>
+$body$
+    <footer class="foot">Plico · <a href="https://github.com/EmaLau/plico">GitHub</a> · <a href="#">$top$</a></footer>
+  </main>
+</div>
+<script>
+  // Su schermi piccoli l'indice parte chiuso; evidenzia la sezione che si sta leggendo.
+  const toc = document.getElementById('toc');
+  if (window.matchMedia('(max-width: 960px)').matches) toc.removeAttribute('open');
+  toc.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+    if (window.matchMedia('(max-width: 960px)').matches) toc.removeAttribute('open');
+  }));
+  const links = new Map([...toc.querySelectorAll('a[href^="#"]')].map(a => [a.getAttribute('href').slice(1), a]));
+  const obs = new IntersectionObserver(entries => {
+    for (const e of entries) if (e.isIntersecting) {
+      links.forEach(a => a.classList.remove('active'));
+      links.get(e.target.id)?.classList.add('active');
+    }
+  }, { rootMargin: '-80px 0px -70% 0px' });
+  document.querySelectorAll('main.doc section[id]').forEach(s => obs.observe(s));
+</script>
+</body>
+</html>
