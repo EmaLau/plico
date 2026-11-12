@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a2a2e"/><stop offset=".7" stop-color="#161618"/></linearGradient></defs>
+  <rect width="400" height="300" rx="20" fill="url(#bg)" stroke="none"/>
+  <defs>
+    <radialGradient id="g" cx="60%" cy="48%" r="55%"><stop offset="0" stop-color="#a1a1aa" stop-opacity=".28"/><stop offset="1" stop-color="#a1a1aa" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="400" height="300" fill="url(#g)" stroke="none"/>
+  <!-- pagine in ingresso -->
+  <g stroke="#ffffff" stroke-opacity=".45" stroke-width="1.6">
+    <path d="M40 60 h30 l12 12 v34 h-42 z"/><path d="M70 60 v12 h12"/>
+    <path d="M40 128 h30 l12 12 v34 h-42 z"/><path d="M70 128 v12 h12"/>
+    <path d="M40 196 h30 l12 12 v34 h-42 z"/><path d="M70 196 v12 h12"/>
+  </g>
+  <g stroke="#ffffff" stroke-opacity=".28" stroke-width="1.5" stroke-dasharray="4 6">
+    <path d="M84 84 H120 Q134 84 134 98 V136 H170"/>
+    <path d="M84 152 H170"/>
+    <path d="M84 220 H120 Q134 220 134 206 V168 H170"/>
+  </g>
+  <!-- documento risultato -->
+  <path d="M170 56 H316 L366 106 V244 H170 Z" fill="#1f1f23" fill-opacity=".6" stroke="#ffffff" stroke-opacity=".5" stroke-width="1.8"/>
+  <path d="M316 56 V106 H366" stroke="#ffffff" stroke-opacity=".5" stroke-width="1.8"/>
+  <g stroke="#ffffff" stroke-opacity=".3" stroke-width="1.4">
+    <path d="M194 86 H270"/><path d="M194 104 H290"/><path d="M194 122 H250"/>
+    <path d="M194 206 H342"/><path d="M194 222 H300"/>
+  </g>
+  <text x="194" y="182" font-family="Helvetica, Arial, sans-serif" font-size="40" font-weight="700" fill="#e5322d" stroke="none" letter-spacing="2">PDF</text>
+  <circle cx="346" cy="226" r="3.5" fill="#e5322d" stroke="none"/>
+  <!-- forbici / unione -->
+  <g stroke="#e5322d" stroke-opacity=".85" stroke-width="1.6">
+    <circle cx="356" cy="34" r="6"/><circle cx="378" cy="34" r="6"/>
+    <path d="M360 29 L374 14"/><path d="M374 29 L360 14"/>
+  </g>
+</svg>

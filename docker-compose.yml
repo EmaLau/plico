@@ -1,0 +1,33 @@
+# Avvio: docker compose up -d   ->   http://localhost:8080
+# Le impostazioni si cambiano in .env (vedi .env.example).
+services:
+  universal-pdf:
+    build:
+      context: ./server
+      args:
+        UID: ${UPDF_UID:-1000}
+        GID: ${UPDF_GID:-1000}
+    image: universal-pdf:latest
+    container_name: universal-pdf
+    restart: unless-stopped
+    ports:
+      - "${UPDF_BIND:-127.0.0.1}:${UPDF_PORT:-8080}:8080"
+    environment:
+      TZ: ${TZ:-Europe/Rome}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-2048}
+    volumes:
+      - updf-work:/work
+    deploy:
+      resources:
+        limits:
+          cpus: "${UPDF_CPUS:-4}"
+          memory: ${UPDF_MEMORY:-3G}
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8080/healthz',timeout=5)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  updf-work:
