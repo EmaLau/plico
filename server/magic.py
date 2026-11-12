@@ -1,6 +1,7 @@
 """Cartella "magica" in Nextcloud (facoltativa): i PDF messi li' vengono elaborati da soli.
 
-Si attiva con NEXTCLOUD_URL, NEXTCLOUD_USER e NEXTCLOUD_PASSWORD (meglio una password per le app).
+Si attiva con NEXTCLOUD_URL, NEXTCLOUD_USER e NEXTCLOUD_PASSWORD (meglio una password per le app),
+oppure NEXTCLOUD_PASSWORD_FILE con il percorso di un file che contiene la password.
 Dentro la cartella NEXTCLOUD_MAGIC_DIR (predefinita "Universal-PDF") c'e' una sottocartella per ogni catena
 con "cartella magica" attiva nella pagina /admin. Un PDF messo in "Universal-PDF/<catena>/" viene elaborato:
 il risultato va in "<catena>/Fatti/", l'originale in "<catena>/Originali/". Se qualcosa va storto,
@@ -81,6 +82,12 @@ class WebDAV:
 
 def config() -> dict | None:
     url, user, pw = (os.environ.get(k, "") for k in ("NEXTCLOUD_URL", "NEXTCLOUD_USER", "NEXTCLOUD_PASSWORD"))
+    pw_file = os.environ.get("NEXTCLOUD_PASSWORD_FILE", "")
+    if not pw and pw_file:
+        try:
+            pw = Path(pw_file).read_text("utf-8").strip()
+        except OSError as e:
+            log.error("NEXTCLOUD_PASSWORD_FILE non leggibile: %s", e)
     if not (url and user and pw):
         return None
     return {"url": url, "user": user, "password": pw, "dir": os.environ.get("NEXTCLOUD_MAGIC_DIR", "Universal-PDF").strip("/"),

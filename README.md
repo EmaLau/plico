@@ -78,6 +78,7 @@ Copy `.env.example` to `.env` and change what you need.
 | `CONVERTER_URL` | empty | Address of a [Universal Converter](https://github.com/EmaLau/universal-converter) for Word, Excel, PowerPoint ↔ PDF (e.g. `http://converter:8080`). Empty = those tools are hidden |
 | `CONVERTER_API_KEY` | empty | Sent as `apikey` to the converter, if it needs one |
 | `NEXTCLOUD_URL` / `NEXTCLOUD_USER` / `NEXTCLOUD_PASSWORD` | empty | Turn on the [magic folder](#nextcloud) (use an app password) |
+| `NEXTCLOUD_PASSWORD_FILE` | empty | Read the app password from a file instead (Docker secrets) |
 | `NEXTCLOUD_MAGIC_DIR` / `NEXTCLOUD_POLL_SECONDS` | `Universal-PDF` / `60` | Magic folder name and how often it is checked |
 | `UPDF_UID` / `UPDF_GID` | `1000` | User that runs the service inside the container |
 | `TZ` | `Europe/Rome` | Time zone |

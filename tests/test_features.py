@@ -387,3 +387,15 @@ def test_new_endpoints_documented(client):
     for p in ("ocr", "pdfa", "repair", "metadata", "extract", "pages", "nup", "sign", "annotate", "forms", "fill",
               "redact", "compare", "scan", "office", "chain"):
         assert f"/api/{p}" in paths, p
+
+
+def test_magic_password_file(tmp_path, monkeypatch):
+    f = tmp_path / "nc-password"
+    f.write_text("segreta\n")
+    monkeypatch.setenv("NEXTCLOUD_URL", "http://nc.example")
+    monkeypatch.setenv("NEXTCLOUD_USER", "utente")
+    monkeypatch.delenv("NEXTCLOUD_PASSWORD", raising=False)
+    monkeypatch.setenv("NEXTCLOUD_PASSWORD_FILE", str(f))
+    assert magic.config()["password"] == "segreta"
+    monkeypatch.setenv("NEXTCLOUD_PASSWORD_FILE", str(tmp_path / "manca"))
+    assert magic.config() is None

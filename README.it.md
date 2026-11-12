@@ -61,6 +61,7 @@ Copia `.env.example` in `.env` e cambia quello che serve.
 | `DATA_DIR` | `/work/data` | Dove si salvano le chiavi API (solo l'hash SHA-256) e il segreto per firmare i cookie |
 | `CONVERTER_URL` | vuota | Indirizzo del Convertitore universale per Word, Excel, PowerPoint ↔ PDF. Vuota = strumenti nascosti |
 | `NEXTCLOUD_URL` / `NEXTCLOUD_USER` / `NEXTCLOUD_PASSWORD` | vuote | Attivano la cartella magica (usa una password per le app); `NEXTCLOUD_MAGIC_DIR` e `NEXTCLOUD_POLL_SECONDS` per nome e frequenza |
+| `NEXTCLOUD_PASSWORD_FILE` | vuota | Legge la password per le app da un file (segreti di Docker) |
 | `MAX_UPLOAD_MB` | `0` | Dimensione massima di ogni file caricato; `0` = nessun limite |
 | `MAX_OUTPUT_MB` | `4096` | Dimensione massima dei risultati di una richiesta (es. tutte le immagini di *PDF in immagini*) |
 | `MAX_PARALLEL` | `2` | Lavori pesanti eseguiti insieme; gli altri aspettano il loro turno |
