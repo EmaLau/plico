@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" fill="none" stroke-linecap="round" stroke-linejoin="round">
-  <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a2a2e"/><stop offset=".7" stop-color="#161618"/></linearGradient></defs>
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1b1430"/><stop offset=".7" stop-color="#121216"/></linearGradient></defs>
   <rect width="400" height="300" rx="20" fill="url(#bg)" stroke="none"/>
   <defs>
-    <radialGradient id="g" cx="62%" cy="45%" r="55%"><stop offset="0" stop-color="#a1a1aa" stop-opacity=".28"/><stop offset="1" stop-color="#a1a1aa" stop-opacity="0"/></radialGradient>
+    <radialGradient id="g" cx="62%" cy="45%" r="55%"><stop offset="0" stop-color="#7c3aed" stop-opacity=".35"/><stop offset="1" stop-color="#7c3aed" stop-opacity="0"/></radialGradient>
   </defs>
   <rect width="400" height="300" fill="url(#g)" stroke="none"/>
   <!-- strumenti: unisci, dividi, proteggi -->
@@ -27,7 +27,7 @@
     <path d="M84 216 H120 Q134 216 134 202 V164 H170"/>
   </g>
   <!-- documento PDF con le miniature delle pagine -->
-  <path d="M188 56 H318 L366 104 V226 Q366 244 348 244 H188 Q170 244 170 226 V74 Q170 56 188 56 Z" fill="#1f1f23" fill-opacity=".6" stroke="#ffffff" stroke-opacity=".5" stroke-width="1.8"/>
+  <path d="M188 56 H318 L366 104 V226 Q366 244 348 244 H188 Q170 244 170 226 V74 Q170 56 188 56 Z" fill="#1b1430" fill-opacity=".55" stroke="#ffffff" stroke-opacity=".5" stroke-width="1.8"/>
   <path d="M318 56 V92 Q318 104 330 104 H366" stroke="#ffffff" stroke-opacity=".5" stroke-width="1.8"/>
   <g stroke="#ffffff" stroke-opacity=".3" stroke-width="1.4"><path d="M190 76 H228"/><path d="M190 222 H250"/></g>
   <g stroke="#ffffff" stroke-opacity=".4" stroke-width="1.4">
