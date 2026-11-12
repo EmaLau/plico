@@ -1,4 +1,4 @@
-# Universal-PDF API
+# Plico API
 
 Every tool of the web page is also an HTTP endpoint, so scripts, other services and iPhone Shortcuts can use it. The interactive reference, generated from the code, is at **`/apidocs`** on your server (OpenAPI schema at `/apidocs/openapi.json`).
 
@@ -20,12 +20,12 @@ Every tool of the web page is also an HTTP endpoint, so scripts, other services 
 
 ## API keys
 
-Keys work like in Gokapi. An administrator creates them on the `/admin` page (protected by `UPDF_ADMIN_PASSWORD`), gives each a name and the permissions it needs, and can revoke them at any time. The full key (`updf_…`) is shown only once.
+Keys work like in Gokapi. An administrator creates them on the `/admin` page (protected by `PLICO_ADMIN_PASSWORD`), gives each a name and the permissions it needs, and can revoke them at any time. The full key (`plico_…`) is shown only once.
 
 Send it in the `apikey` header:
 
 ```bash
-curl -H "apikey: updf_..." -F file=@scan.pdf -o scan-ocr.pdf http://pdf.example:8080/api/ocr
+curl -H "apikey: plico_..." -F file=@scan.pdf -o scan-ocr.pdf http://pdf.example:8080/api/ocr
 ```
 
 | Answer | Meaning |
@@ -111,7 +111,7 @@ Chains can also be saved on `/admin` and called by name: `-F chain="Archivio (OC
 
 ```bash
 URL=http://pdf.example:8080
-KEY="apikey: updf_..."      # leave out -H "$KEY" if the server does not require keys
+KEY="apikey: plico_..."      # leave out -H "$KEY" if the server does not require keys
 
 # merge, in this order
 curl -H "$KEY" -F files=@cover.pdf -F files=@report.pdf -F files=@photo.jpg -o all.pdf $URL/api/merge
@@ -136,7 +136,7 @@ curl -H "$KEY" $(for f in invoices/*.pdf; do printf -- '-F files=@%s ' "$f"; don
 import requests
 
 URL = "http://pdf.example:8080"
-HEADERS = {"apikey": "updf_..."}
+HEADERS = {"apikey": "plico_..."}
 
 with open("scan.pdf", "rb") as f:
     r = requests.post(f"{URL}/api/ocr", headers=HEADERS, files={"file": f}, data={"lang": "ita+eng"})

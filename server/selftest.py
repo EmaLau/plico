@@ -37,7 +37,7 @@ def get_cookie(resp_headers, name):
 
 # sessione della pagina web, come un browser che apre "/"
 with urllib.request.urlopen(URL + "/", timeout=30) as r:
-    SESSION = get_cookie(r.getheaders(), "updf_session")
+    SESSION = get_cookie(r.getheaders(), "plico_session")
 
 
 def post(path, fields=None, files=(), headers=None, session=True):
@@ -63,7 +63,7 @@ def post(path, fields=None, files=(), headers=None, session=True):
 def jcall(method, path, body=None, cookie="", xrw=True):
     h = {"Content-Type": "application/json"}
     if xrw:
-        h["X-Requested-With"] = "universal-pdf"
+        h["X-Requested-With"] = "plico"
     if cookie:
         h["Cookie"] = cookie
     req = urllib.request.Request(URL + path, json.dumps(body).encode() if body is not None else None, h, method=method)
@@ -193,8 +193,8 @@ s, b, _ = post("/api/chain", {"steps": steps}, [("files", "a.pdf", pdf), ("files
 check("chain zip", s == 200 and len(zipfile.ZipFile(io.BytesIO(b)).namelist()) == 2)
 
 # Chiavi API
-check("page session cookie", SESSION.startswith("updf_session="))
-s, b, _ = post("/api/info", files=[("file", "a.pdf", pdf)], headers={"apikey": "updf_sbagliata"})
+check("page session cookie", SESSION.startswith("plico_session="))
+s, b, _ = post("/api/info", files=[("file", "a.pdf", pdf)], headers={"apikey": "plico_sbagliata"})
 check("invalid api key -> 401", s == 401, json.loads(b)["detail"])
 if os.environ.get("API_REQUIRE_KEY", "").lower() in ("1", "true", "yes", "si", "on"):
     s, b, _ = post("/api/info", files=[("file", "a.pdf", pdf)], session=False)
@@ -202,12 +202,12 @@ if os.environ.get("API_REQUIRE_KEY", "").lower() in ("1", "true", "yes", "si", "
 else:
     s, b, _ = post("/api/info", files=[("file", "a.pdf", pdf)], session=False)
     check("no key, no session -> 200 (API_REQUIRE_KEY off)", s == 200)
-admin_pw = os.environ.get("UPDF_ADMIN_PASSWORD", "")
+admin_pw = os.environ.get("PLICO_ADMIN_PASSWORD", "")
 if admin_pw:
     s, _, _ = jcall("POST", "/admin/api/login", {"password": "sbagliata"})
     check("admin wrong password -> 401", s == 401)
     s, _, h = jcall("POST", "/admin/api/login", {"password": admin_pw})
-    adm = get_cookie(h, "updf_admin")
+    adm = get_cookie(h, "plico_admin")
     check("admin login", s == 200 and adm)
     s, _, _ = jcall("POST", "/admin/api/keys", {"name": "x", "perms": ["merge"]}, adm, xrw=False)
     check("admin write without X-Requested-With -> 403", s == 403)
@@ -215,7 +215,7 @@ if admin_pw:
     check("admin list without login -> 401", s == 401)
     s, k, _ = jcall("POST", "/admin/api/keys", {"name": "selftest", "perms": ["merge"]}, adm)
     key = k.get("key", "")
-    check("create api key", s == 200 and key.startswith("updf_"))
+    check("create api key", s == 200 and key.startswith("plico_"))
     s, b, _ = post("/api/merge", files=[("files", "a.pdf", pdf), ("files", "b.pdf", pdf2)],
                    headers={"apikey": key}, session=False)
     check("api key with permission -> 200", s == 200 and pages(b) == 7)
@@ -247,7 +247,7 @@ if admin_pw:
                     headers={"apikey": key}, session=False)
     check("revoked key -> 401", s == 200 and s2 == 401)
 else:
-    print("SKIP admin / api keys  (UPDF_ADMIN_PASSWORD non impostata)")
+    print("SKIP admin / api keys  (PLICO_ADMIN_PASSWORD non impostata)")
 # le cartelle dei file inviati si cancellano subito DOPO la risposta (BackgroundTask):
 # si aspetta qualche secondo prima di considerarle dimenticate
 for _ in range(50):

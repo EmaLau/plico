@@ -1,4 +1,4 @@
-# Universal-PDF
+# Plico
 
 <p align="center"><img src="docs/cover.svg" width="400" alt=""></p>
 
@@ -13,7 +13,7 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 ![PyMuPDF](https://img.shields.io/badge/PyMuPDF-1.26-e5322d)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue)
-[![CI](https://github.com/EmaLau/universal-pdf/actions/workflows/ci.yml/badge.svg)](https://github.com/EmaLau/universal-pdf/actions/workflows/ci.yml)
+[![CI](https://github.com/EmaLau/plico/actions/workflows/ci.yml/badge.svg)](https://github.com/EmaLau/plico/actions/workflows/ci.yml)
 
 <p align="center">
 <picture>
@@ -44,15 +44,15 @@ The interface is in English and Italian: it follows the browser language and can
 You need Docker with Docker Compose.
 
 ```bash
-git clone https://github.com/EmaLau/universal-pdf.git
-cd universal-pdf
+git clone https://github.com/EmaLau/plico.git
+cd plico
 docker compose up -d --build
 ```
 
 Open <http://localhost:8080>. To check that every tool works:
 
 ```bash
-docker compose exec universal-pdf python3 /app/selftest.py
+docker compose exec plico python3 /app/selftest.py
 ```
 
 The selftest runs about 50 checks (some only when the related setting is enabled) against the live server and saves sample results in `/work/selftest/` inside the container.
@@ -65,22 +65,22 @@ Copy `.env.example` to `.env` and change what you need.
 
 | Variable | Default | Description |
 |---|---|---|
-| `UPDF_BIND` / `UPDF_PORT` | `127.0.0.1` / `8080` | Where to publish the service (`0.0.0.0` for the whole network) |
+| `PLICO_BIND` / `PLICO_PORT` | `127.0.0.1` / `8080` | Where to publish the service (`0.0.0.0` for the whole network) |
 | `MAX_UPLOAD_MB` | `0` | Maximum size of each uploaded file; `0` means no limit |
 | `MAX_OUTPUT_MB` | `4096` | Maximum total size of the results of one request (e.g. all the images of *PDF to images*) |
 | `MAX_PARALLEL` | `2` | Heavy jobs run at the same time; the others wait their turn |
 | `MAX_PAGE_MPX` | `50` | Maximum megapixels for a page rendered by *PDF to images*: larger pages get a lower DPI |
-| `UPDF_CPUS` / `UPDF_MEMORY` | `4` / `3G` | Container resource limits |
-| `UPDF_ADMIN_PASSWORD` | empty | Password of the `/admin` page where API keys are managed. Empty = admin page disabled. It can also be written in the file `admin-password` inside `DATA_DIR` |
-| `UPDF_ADMIN_LOGIN` | `true` | Initial value of the *admin password* switch. `false` = the `/admin` page opens without a password, so anyone who can reach the service can manage keys. The switch on `/admin` overrides it and is remembered |
+| `PLICO_CPUS` / `PLICO_MEMORY` | `4` / `3G` | Container resource limits |
+| `PLICO_ADMIN_PASSWORD` | empty | Password of the `/admin` page where API keys are managed. Empty = admin page disabled. It can also be written in the file `admin-password` inside `DATA_DIR` |
+| `PLICO_ADMIN_LOGIN` | `true` | Initial value of the *admin password* switch. `false` = the `/admin` page opens without a password, so anyone who can reach the service can manage keys. The switch on `/admin` overrides it and is remembered |
 | `API_REQUIRE_KEY` | `false` | Initial value of the *key required* switch: `true` = API calls made outside the web page need an API key. The switch on the `/admin` page overrides it and is remembered |
 | `DATA_DIR` | `/work/data` | Where API keys (only their SHA-256 hashes) and the signing secret are stored |
 | `CONVERTER_URL` | empty | Address of a [Universal Converter](https://github.com/EmaLau/universal-converter) for Word, Excel, PowerPoint ↔ PDF (e.g. `http://converter:8080`). Empty = those tools are hidden |
 | `CONVERTER_API_KEY` | empty | Sent as `apikey` to the converter, if it needs one |
 | `NEXTCLOUD_URL` / `NEXTCLOUD_USER` / `NEXTCLOUD_PASSWORD` | empty | Turn on the [magic folder](#nextcloud) (use an app password) |
 | `NEXTCLOUD_PASSWORD_FILE` | empty | Read the app password from a file instead (Docker secrets) |
-| `NEXTCLOUD_MAGIC_DIR` / `NEXTCLOUD_POLL_SECONDS` | `Universal-PDF` / `60` | Magic folder name and how often it is checked |
-| `UPDF_UID` / `UPDF_GID` | `1000` | User that runs the service inside the container |
+| `NEXTCLOUD_MAGIC_DIR` / `NEXTCLOUD_POLL_SECONDS` | `Plico` / `60` | Magic folder name and how often it is checked |
+| `PLICO_UID` / `PLICO_GID` | `1000` | User that runs the service inside the container |
 | `TZ` | `Europe/Rome` | Time zone |
 
 ## API
@@ -91,12 +91,12 @@ Interactive documentation (Swagger UI) is at **`/apidocs`**, the OpenAPI schema 
 
 API keys work like in [Gokapi](https://github.com/Forceu/Gokapi):
 
-1. Set `UPDF_ADMIN_PASSWORD` and open **`/admin`**.
+1. Set `PLICO_ADMIN_PASSWORD` and open **`/admin`**.
 2. Create a key with a name and the permissions it needs, one per tool (full list in [docs/api.md](docs/api.md#api-keys)). The full key is shown only once; the server keeps its SHA-256 hash, the last time it was used, and lets you change permissions or revoke it.
 3. Send it in the `apikey` header:
 
 ```bash
-curl -H "apikey: updf_..." -F files=@a.pdf -F files=@b.pdf -o merged.pdf http://localhost:8080/api/merge
+curl -H "apikey: plico_..." -F files=@a.pdf -F files=@b.pdf -o merged.pdf http://localhost:8080/api/merge
 ```
 
 A wrong or revoked key gets `401`, a key without the permission for that tool gets `403`; both are checked before the upload is received. The web page does not need a key: opening it sets a signed session cookie. When *Key required for the API* is switched on in `/admin` (initial value from `API_REQUIRE_KEY`), calls with neither a key nor that cookie get `401`. Anyone who can open the page can still get the cookie, so this keeps scripts in order; it is not a protection against people who can reach the service.
@@ -155,12 +155,12 @@ Both integrations are optional; the service works without Nextcloud.
 ```bash
 cp -r nextcloud-app /path/to/nextcloud/custom_apps/strumentipdf
 occ app:enable strumentipdf
-occ config:app:set strumentipdf pdf_url --value=http://universal-pdf-address:8080
-occ config:app:set strumentipdf api_key --value=updf_...      # if the server requires a key
+occ config:app:set strumentipdf pdf_url --value=http://plico-address:8080
+occ config:app:set strumentipdf api_key --value=plico_...      # if the server requires a key
 occ config:system:set allow_local_remote_servers --value=true --type=boolean   # if the address is on the local network
 ```
 
-**Magic folder.** With `NEXTCLOUD_URL`, `NEXTCLOUD_USER` and `NEXTCLOUD_PASSWORD` (an app password) the server watches the folder `Universal-PDF/` of that user. Every saved chain with *magic folder* switched on in `/admin` gets a subfolder: drop a PDF in `Universal-PDF/<chain>/` and within a minute the result appears in `Fatti/`, the original moves to `Originali/`, and a file that cannot be processed goes to `Errori/` with a `.txt` explaining why.
+**Magic folder.** With `NEXTCLOUD_URL`, `NEXTCLOUD_USER` and `NEXTCLOUD_PASSWORD` (an app password) the server watches the folder `Plico/` of that user. Every saved chain with *magic folder* switched on in `/admin` gets a subfolder: drop a PDF in `Plico/<chain>/` and within a minute the result appears in `Fatti/`, the original moves to `Originali/`, and a file that cannot be processed goes to `Errori/` with a `.txt` explaining why.
 
 ## How it works
 
@@ -220,7 +220,7 @@ The same tests run in GitHub Actions, together with a Docker build and the selft
 - [x] pytest tests, browser test of the page, CI
 - [x] English or bilingual interface, security headers
 - [x] OCR, signature, forms, annotations, redaction, compare, crop/resize, n-up/booklet, image watermark and header/footer, repair, PDF/A, metadata, extract, scanner, batch and chains, Office via the converter, Nextcloud app and magic folder, API guide
-- [ ] Review the name and make sure nothing is copied from the site that inspired it
+- [x] New name (*Plico*, Italian for a bundle of documents), checked that no text or code is copied from other PDF tools
 
 ## License
 

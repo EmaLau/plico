@@ -11,7 +11,7 @@ use OCP\ICacheFactory;
 use OCP\IConfig;
 use Psr\Log\LoggerInterface;
 
-/** Parla con il server Universal-PDF (pdf_url, api_key nelle impostazioni dell'app). */
+/** Parla con il server Plico (pdf_url, api_key nelle impostazioni dell'app). */
 class PdfClient {
 	private ICache $cache;
 
@@ -80,7 +80,7 @@ class PdfClient {
 				'http_errors' => false,
 			]);
 		} catch (\Throwable $e) {
-			throw new PdfException('Il server Universal-PDF non risponde');
+			throw new PdfException('Il server Plico non risponde');
 		}
 		$body = (string)$resp->getBody();
 		if ($resp->getStatusCode() !== 200) {

@@ -201,17 +201,17 @@ def create_key(admin, perms, name="test"):
 
 def test_page_sets_session_cookie(client):
     r = client.get("/")
-    assert r.status_code == 200 and "updf_session" in r.cookies
+    assert r.status_code == 200 and "plico_session" in r.cookies
 
 
 def test_invalid_key(client):
-    r = client.post("/api/info", files=[up("a.pdf", PDF)], headers={"apikey": "updf_sbagliata"})
+    r = client.post("/api/info", files=[up("a.pdf", PDF)], headers={"apikey": "plico_sbagliata"})
     assert r.status_code == 401
 
 
 def test_key_permissions(admin, client):
     k = create_key(admin, ["merge"])
-    assert k["key"].startswith("updf_") and "hash" not in k
+    assert k["key"].startswith("plico_") and "hash" not in k
     h = {"apikey": k["key"]}
     r = client.post("/api/merge", files=[up("a.pdf", PDF, "files"), up("b.pdf", PDF2, "files")], headers=h)
     assert r.status_code == 200
@@ -248,7 +248,7 @@ def test_require_key_switch(admin):
 
 def test_admin_requires_login(client):
     assert client.get("/admin/api/keys").status_code == 401
-    r = client.post("/admin/api/login", json={"password": "no"}, headers={"X-Requested-With": "universal-pdf"})
+    r = client.post("/admin/api/login", json={"password": "no"}, headers={"X-Requested-With": "plico"})
     assert r.status_code == 401
 
 
@@ -260,7 +260,7 @@ def test_admin_write_needs_header(admin):
 def test_admin_login_rate_limit(client, monkeypatch):
     real_sleep = asyncio.sleep
     monkeypatch.setattr(server.asyncio, "sleep", lambda s: real_sleep(0))
-    h = {"X-Requested-With": "universal-pdf"}
+    h = {"X-Requested-With": "plico"}
     codes = [client.post("/admin/api/login", json={"password": "no"}, headers=h).status_code for _ in range(6)]
     assert codes[:5] == [401] * 5 and codes[5] == 429
 
@@ -270,7 +270,7 @@ def test_admin_login_switch(admin):
     admin.put("/admin/api/settings", json={"admin_login": False})
     with TestClient(server.app) as anon:
         assert anon.get("/admin/api/keys").status_code == 200
-        r = anon.put("/admin/api/settings", json={"admin_login": True}, headers={"X-Requested-With": "universal-pdf"})
+        r = anon.put("/admin/api/settings", json={"admin_login": True}, headers={"X-Requested-With": "plico"})
         assert r.status_code == 200
     with TestClient(server.app) as anon:
         assert anon.get("/admin/api/keys").status_code == 401
@@ -328,10 +328,10 @@ def test_cross_site_requests(client, headers, status):
 
 def test_cross_site_admin_login_rejected(client):
     r = client.post("/admin/api/login", json={"password": "x"},
-                    headers={"X-Requested-With": "universal-pdf", "Origin": "http://evil.example"})
+                    headers={"X-Requested-With": "plico", "Origin": "http://evil.example"})
     assert r.status_code == 403
 
 
 def test_i18n_script_served(client):
     r = client.get("/static/i18n.js")
-    assert r.status_code == 200 and "UPDF_I18N" in r.text
+    assert r.status_code == 200 and "PLICO_I18N" in r.text

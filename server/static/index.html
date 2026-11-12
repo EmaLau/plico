@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Universal-PDF</title>
+<title>Plico</title>
 <script src="static/i18n.js"></script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23e5322d'/%3E%3Cpath d='M7 5h7l4 4v10H7z' fill='white'/%3E%3Cpath d='M14 5v4h4' fill='%23f6b0ad'/%3E%3C/svg%3E">
 <style>
@@ -168,7 +168,7 @@ footer{margin-top:44px;color:var(--muted);font-size:13px;text-align:center}
 <body>
 <main>
   <header class="top">
-    <a class="brand" href="#"><span class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg></span>Universal-PDF</a>
+    <a class="brand" href="#"><span class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg></span>Plico</a>
     <div class="topr"><span class="lang" data-lang-switch></span><span class="pill"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Tutto <b>in locale</b></span></div>
   </header>
 
@@ -211,7 +211,7 @@ footer{margin-top:44px;color:var(--muted);font-size:13px;text-align:center}
     </div>
   </div>
 
-  <footer>Universal-PDF · self-hosted · nessun file conservato · <a href="apidocs">API</a></footer>
+  <footer>Plico · self-hosted · nessun file conservato · <a href="apidocs">API</a></footer>
 </main>
 
 <dialog id="pick"><div class="dlg"><h2>Cosa vuoi fare?</h2><p id="pickName"></p><div class="dgrid" id="pickGrid"></div>
@@ -284,7 +284,7 @@ const TOOLS = [
 ];
 const T = Object.fromEntries(TOOLS.map(t => [t.id, t]));
 const $ = s => document.querySelector(s);
-const L = s => UPDF_I18N.lang === "en" ? ({Pagina: "Page", di: "of"}[s] || s) : s;  // testi che finiscono nel PDF
+const L = s => PLICO_I18N.lang === "en" ? ({Pagina: "Page", di: "of"}[s] || s) : s;  // testi che finiscono nel PDF
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt = b => b < 1024 ? b + " B" : b < 1048576 ? (b/1024).toFixed(0) + " KB" : (b/1048576).toFixed(b < 10485760 ? 1 : 0) + " MB";
 
@@ -302,14 +302,14 @@ let FEAT = {office: false, ocr: true}, CHAINS = [], cur = 0, marks = [], big = {
 
 function route() {
   const id = location.hash.slice(1);
-  if (!T[id]) { $("#home").classList.remove("hidden"); $("#tool").classList.add("hidden"); tool = null; document.title = "Universal-PDF"; return; }
+  if (!T[id]) { $("#home").classList.remove("hidden"); $("#tool").classList.add("hidden"); tool = null; document.title = "Plico"; return; }
   openTool(id);
 }
 window.addEventListener("hashchange", route);
 
 function openTool(id) {
   tool = T[id];
-  document.title = tool.t + " · Universal-PDF";
+  document.title = tool.t + " · Plico";
   $("#home").classList.add("hidden"); $("#tool").classList.remove("hidden");
   $("#tIc").style.background = tool.c; $("#tIc").innerHTML = svg(tool.ic);
   $("#tTitle").textContent = tool.t; $("#tDesc").textContent = tool.d;

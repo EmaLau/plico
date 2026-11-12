@@ -1,11 +1,11 @@
-/* Universal-PDF: interfaccia in italiano o in inglese.
+/* Plico: interfaccia in italiano o in inglese.
    Le pagine sono scritte in italiano; se la lingua scelta e' l'inglese, ogni testo che compare nella
    pagina (anche quelli creati dal JavaScript) viene tradotto con questo dizionario. La lingua parte da
    quella del browser e si cambia con il selettore IT / EN (ricordato in localStorage).
    Alle richieste al server si aggiunge Accept-Language, cosi' anche i messaggi di errore arrivano
    nella lingua giusta. */
 "use strict";
-const UPDF_I18N = (() => {
+const PLICO_I18N = (() => {
   const EN = {
     // intestazione e home
     "Tutto": "Runs", "in locale": "locally",
@@ -16,7 +16,7 @@ const UPDF_I18N = (() => {
     "oppure clicca per sceglierlo, poi scegli cosa farci": "or click to choose it, then pick what to do",
     "Organizza": "Organize", "Ottimizza e converti": "Optimize and convert", "Sicurezza e modifica": "Security and editing",
     "Tutti gli strumenti": "All tools",
-    "Universal-PDF · self-hosted · nessun file conservato ·": "Universal-PDF · self-hosted · no files kept ·",
+    "Plico · self-hosted · nessun file conservato ·": "Plico · self-hosted · no files kept ·",
     "Cosa vuoi fare?": "What do you want to do?", "Annulla": "Cancel", "Rilascia il file": "Drop the file",
     // strumenti
     "Unisci PDF": "Merge PDF", "Metti insieme più PDF (anche immagini) nell'ordine che vuoi.": "Combine several PDFs (images too) in the order you want.",
@@ -196,8 +196,8 @@ const UPDF_I18N = (() => {
     "Disattiva:": "Off:",
     "chiunque raggiunga il servizio può creare, modificare e revocare le chiavi. Con la password spenta anche l'obbligo della chiave protegge poco, perché chiunque può crearsene una.":
       "anyone who can reach the service can create, change and revoke keys. With the password off, requiring a key protects little, because anyone can create one.",
-    "Disattiva, e non c'è nessuna password impostata: per riattivarla imposta UPDF_ADMIN_PASSWORD o il file admin-password e riavvia.":
-      "Off, and no password is set: to turn it back on set UPDF_ADMIN_PASSWORD or the admin-password file and restart.",
+    "Disattiva, e non c'è nessuna password impostata: per riattivarla imposta PLICO_ADMIN_PASSWORD o il file admin-password e riavvia.":
+      "Off, and no password is set: to turn it back on set PLICO_ADMIN_PASSWORD or the admin-password file and restart.",
     "Per attivarla imposta la variabile": "To enable it set the variable", ", oppure scrivi la password nel file": ", or write the password in the file",
     "della cartella dei dati (": "in the data folder (", ", predefinita": ", default", "), poi riavvia il servizio.": "), then restart the service.",
   };
@@ -210,14 +210,14 @@ const UPDF_I18N = (() => {
     [/^(.*) Una pagina era molto grande ed è stata resa a una risoluzione più bassa\.$/, "$1 One page was very large and was rendered at a lower resolution."],
     [/^(.*) (\d+) pagine erano molto grandi e sono state rese a una risoluzione più bassa\.$/, "$1 $2 pages were very large and were rendered at a lower resolution."],
     [/^Creata (.+) · ultimo uso: mai$/, "Created $1 · last used: never"], [/^Creata (.+) · ultimo uso: (.+)$/, "Created $1 · last used: $2"],
-    [/^(.+) · Universal-PDF$/, m => tr(m[1]) + " · Universal-PDF"],
-    [/^Universal-PDF · Chiavi API$/, "Universal-PDF · API keys"],
+    [/^(.+) · Plico$/, m => tr(m[1]) + " · Plico"],
+    [/^Plico · Chiavi API$/, "Plico · API keys"],
     [/^Scarica (\w+)$/, "Download $1"],
     [/^Cartella magica attiva: (.+), cartella "(.+)", controllo ogni (\d+) s\. Elaborati: (\d+), errori: (\d+)(.*)\.$/, 'Magic folder on: $1, folder "$2", checked every $3 s. Processed: $4, errors: $5$6.'],
   ];
 
   let saved = null;
-  try { saved = localStorage.getItem("updf-lang"); } catch {}
+  try { saved = localStorage.getItem("plico-lang"); } catch {}
   const lang = saved === "it" || saved === "en" ? saved : ((navigator.language || "en").toLowerCase().startsWith("it") ? "it" : "en");
 
   function tr(s) {
@@ -269,7 +269,7 @@ const UPDF_I18N = (() => {
   const _send = XMLHttpRequest.prototype.send;
   XMLHttpRequest.prototype.send = function (body) { try { this.setRequestHeader("Accept-Language", lang); } catch {} return _send.call(this, body); };
 
-  function set(l) { try { localStorage.setItem("updf-lang", l); } catch {} location.reload(); }
+  function set(l) { try { localStorage.setItem("plico-lang", l); } catch {} location.reload(); }
 
   // selettore IT / EN, in qualsiasi elemento con data-lang-switch
   document.addEventListener("DOMContentLoaded", () => {

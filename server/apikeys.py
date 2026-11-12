@@ -1,4 +1,4 @@
-"""Chiavi API e area admin di Universal-PDF, sul modello di Gokapi.
+"""Chiavi API e area admin di Plico, sul modello di Gokapi.
 
 - Le chiavi hanno un nome e dei permessi (uno per strumento). Si creano nella pagina /admin, protetta
   da una password; la chiave intera si vede una sola volta e sul disco resta solo il suo hash SHA-256.
@@ -8,7 +8,7 @@
   API_REQUIRE_KEY da' solo il valore iniziale. Se attivo, le chiamate senza chiave e senza la sessione
   della pagina vengono rifiutate.
 - Anche la password dell'area admin si puo' disattivare dalla pagina /admin (valore iniziale da
-  UPDF_ADMIN_LOGIN, predefinito true). Senza password chiunque raggiunga il servizio gestisce le chiavi.
+  PLICO_ADMIN_LOGIN, predefinito true). Senza password chiunque raggiunga il servizio gestisce le chiavi.
   Chi apre prima la pagina ottiene comunque la sessione: e' un modo per mettere ordine, non una difesa
   contro chi raggiunge il servizio.
 """
@@ -55,8 +55,8 @@ PERMISSIONS = {
     "chain": "Catene e più file insieme",
 }
 
-SESSION_COOKIE = "updf_session"
-ADMIN_COOKIE = "updf_admin"
+SESSION_COOKIE = "plico_session"
+ADMIN_COOKIE = "plico_admin"
 SESSION_TTL = 30 * 24 * 3600  # la pagina rinnova la sessione a ogni apertura
 ADMIN_TTL = 12 * 3600
 LAST_USED_EVERY = 60  # secondi tra un salvataggio e l'altro dell'"ultimo uso"
@@ -77,7 +77,7 @@ class KeyStore:
         self.settings_file = self.dir / "settings.json"
         self.lock = threading.Lock()
         self.require_key = _truthy(os.environ.get("API_REQUIRE_KEY"))
-        self.admin_login = _truthy(os.environ.get("UPDF_ADMIN_LOGIN", "true"))
+        self.admin_login = _truthy(os.environ.get("PLICO_ADMIN_LOGIN", "true"))
         if self.settings_file.exists():
             saved = json.loads(self.settings_file.read_text("utf-8"))
             self.require_key = bool(saved.get("require_key", self.require_key))
@@ -100,7 +100,7 @@ class KeyStore:
         return bytes.fromhex(f.read_text().strip())
 
     def _load_admin_password(self) -> str:
-        pw = os.environ.get("UPDF_ADMIN_PASSWORD", "")
+        pw = os.environ.get("PLICO_ADMIN_PASSWORD", "")
         f = self.dir / "admin-password"
         if not pw and f.exists():
             pw = f.read_text("utf-8").strip()
@@ -124,7 +124,7 @@ class KeyStore:
     def update_settings(self, require_key: bool | None = None, admin_login: bool | None = None):
         with self.lock:
             if admin_login and not self.admin_password:
-                raise HTTPException(400, "Imposta prima una password (UPDF_ADMIN_PASSWORD o file admin-password)")
+                raise HTTPException(400, "Imposta prima una password (PLICO_ADMIN_PASSWORD o file admin-password)")
             if require_key is not None:
                 self.require_key = bool(require_key)
             if admin_login is not None:
@@ -148,7 +148,7 @@ class KeyStore:
         if not name:
             raise HTTPException(400, "Dai un nome alla chiave")
         perms = self._clean_perms(perms)
-        key = "updf_" + secrets.token_urlsafe(32)
+        key = "plico_" + secrets.token_urlsafe(32)
         kid = secrets.token_hex(6)
         rec = {"name": name, "hash": self._hash(key), "prefix": key[:10], "perms": perms,
                "created": int(time.time()), "last_used": None}

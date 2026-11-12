@@ -1,4 +1,4 @@
-# Universal-PDF
+# Plico
 
 <p align="center"><img src="docs/cover.svg" width="400" alt=""></p>
 
@@ -33,15 +33,15 @@ L'interfaccia è in italiano e in inglese: segue la lingua del browser e si camb
 Serve Docker con Docker Compose.
 
 ```bash
-git clone https://github.com/EmaLau/universal-pdf.git
-cd universal-pdf
+git clone https://github.com/EmaLau/plico.git
+cd plico
 docker compose up -d --build
 ```
 
 Apri <http://localhost:8080>. Per controllare che tutti gli strumenti funzionino:
 
 ```bash
-docker compose exec universal-pdf python3 /app/selftest.py
+docker compose exec plico python3 /app/selftest.py
 ```
 
 Il selftest esegue circa 50 controlli sul server in funzione (alcuni solo con l'impostazione relativa) e salva alcuni risultati di esempio in `/work/selftest/` dentro il container.
@@ -54,9 +54,9 @@ Copia `.env.example` in `.env` e cambia quello che serve.
 
 | Variabile | Predefinito | Descrizione |
 |---|---|---|
-| `UPDF_BIND` / `UPDF_PORT` | `127.0.0.1` / `8080` | Dove pubblicare il servizio (`0.0.0.0` per tutta la rete) |
-| `UPDF_ADMIN_PASSWORD` | vuota | Password della pagina `/admin` dove si gestiscono le chiavi API. Vuota = pagina disattivata. Si può anche scrivere nel file `admin-password` dentro `DATA_DIR` |
-| `UPDF_ADMIN_LOGIN` | `true` | Valore iniziale dell'interruttore *password per l'area admin*. `false` = la pagina `/admin` si apre senza password, quindi chiunque raggiunga il servizio gestisce le chiavi. L'interruttore nella pagina `/admin` ha la precedenza e viene ricordato |
+| `PLICO_BIND` / `PLICO_PORT` | `127.0.0.1` / `8080` | Dove pubblicare il servizio (`0.0.0.0` per tutta la rete) |
+| `PLICO_ADMIN_PASSWORD` | vuota | Password della pagina `/admin` dove si gestiscono le chiavi API. Vuota = pagina disattivata. Si può anche scrivere nel file `admin-password` dentro `DATA_DIR` |
+| `PLICO_ADMIN_LOGIN` | `true` | Valore iniziale dell'interruttore *password per l'area admin*. `false` = la pagina `/admin` si apre senza password, quindi chiunque raggiunga il servizio gestisce le chiavi. L'interruttore nella pagina `/admin` ha la precedenza e viene ricordato |
 | `API_REQUIRE_KEY` | `false` | Valore iniziale dell'interruttore *chiave obbligatoria*: `true` = le chiamate fatte fuori dalla pagina web richiedono una chiave. L'interruttore nella pagina `/admin` ha la precedenza e viene ricordato |
 | `DATA_DIR` | `/work/data` | Dove si salvano le chiavi API (solo l'hash SHA-256) e il segreto per firmare i cookie |
 | `CONVERTER_URL` | vuota | Indirizzo del Convertitore universale per Word, Excel, PowerPoint ↔ PDF. Vuota = strumenti nascosti |
@@ -66,19 +66,19 @@ Copia `.env.example` in `.env` e cambia quello che serve.
 | `MAX_OUTPUT_MB` | `4096` | Dimensione massima dei risultati di una richiesta (es. tutte le immagini di *PDF in immagini*) |
 | `MAX_PARALLEL` | `2` | Lavori pesanti eseguiti insieme; gli altri aspettano il loro turno |
 | `MAX_PAGE_MPX` | `50` | Megapixel massimi per una pagina in *PDF in immagini*: le pagine più grandi vengono rese a dpi più bassi |
-| `UPDF_CPUS` / `UPDF_MEMORY` | `4` / `3G` | Limiti di risorse del container |
-| `UPDF_UID` / `UPDF_GID` | `1000` | Utente che esegue il servizio nel container |
+| `PLICO_CPUS` / `PLICO_MEMORY` | `4` / `3G` | Limiti di risorse del container |
+| `PLICO_UID` / `PLICO_GID` | `1000` | Utente che esegue il servizio nel container |
 | `TZ` | `Europe/Rome` | Fuso orario |
 
 ## API
 
 La documentazione interattiva è in **`/apidocs`**; l'elenco degli endpoint è anche nel [README in inglese](README.md#api).
 
-Le chiavi API funzionano come in Gokapi: imposta `UPDF_ADMIN_PASSWORD`, apri **`/admin`** e crea una chiave con un nome e i permessi che servono (uno per strumento). La chiave si vede una sola volta; poi la mandi nell'intestazione `apikey`:
+Le chiavi API funzionano come in Gokapi: imposta `PLICO_ADMIN_PASSWORD`, apri **`/admin`** e crea una chiave con un nome e i permessi che servono (uno per strumento). La chiave si vede una sola volta; poi la mandi nell'intestazione `apikey`:
 
 ```bash
 # unisci due PDF
-curl -H "apikey: updf_..." -F files=@a.pdf -F files=@b.pdf -o unito.pdf http://localhost:8080/api/merge
+curl -H "apikey: plico_..." -F files=@a.pdf -F files=@b.pdf -o unito.pdf http://localhost:8080/api/merge
 ```
 
 La pagina web non ha bisogno della chiave. Con l'interruttore *Chiave obbligatoria per le API* attivo in `/admin` (valore iniziale da `API_REQUIRE_KEY`) le chiamate senza chiave fatte fuori dalla pagina vengono rifiutate (401); una chiave senza il permesso per quello strumento riceve 403.

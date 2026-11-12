@@ -14,9 +14,9 @@ ROOT = Path(__file__).resolve().parent.parent
 SERVER = ROOT / "server"
 ADMIN_PASSWORD = "test-admin-password"
 
-_work = Path(tempfile.mkdtemp(prefix="updf-test-"))
-os.environ.update(WORK_DIR=str(_work), DATA_DIR=str(_work / "data"), UPDF_ADMIN_PASSWORD=ADMIN_PASSWORD,
-                  API_REQUIRE_KEY="false", UPDF_ADMIN_LOGIN="true")
+_work = Path(tempfile.mkdtemp(prefix="plico-test-"))
+os.environ.update(WORK_DIR=str(_work), DATA_DIR=str(_work / "data"), PLICO_ADMIN_PASSWORD=ADMIN_PASSWORD,
+                  API_REQUIRE_KEY="false", PLICO_ADMIN_LOGIN="true")
 sys.path.insert(0, str(SERVER))
 
 import fitz  # noqa: E402
@@ -54,9 +54,9 @@ def client():
 @pytest.fixture
 def admin(client):
     r = client.post("/admin/api/login", json={"password": ADMIN_PASSWORD},
-                    headers={"X-Requested-With": "universal-pdf"})
+                    headers={"X-Requested-With": "plico"})
     assert r.status_code == 200
-    client.headers["X-Requested-With"] = "universal-pdf"
+    client.headers["X-Requested-With"] = "plico"
     return client
 
 
@@ -82,7 +82,7 @@ def _free_port() -> int:
 def live_server():
     """Il server vero, con uvicorn, per la prova dell'interfaccia nel browser."""
     port = _free_port()
-    work = Path(tempfile.mkdtemp(prefix="updf-live-"))
+    work = Path(tempfile.mkdtemp(prefix="plico-live-"))
     env = {**os.environ, "WORK_DIR": str(work), "DATA_DIR": str(work / "data")}
     proc = subprocess.Popen([sys.executable, "-m", "uvicorn", "server:app", "--host", "127.0.0.1",
                              "--port", str(port), "--no-access-log"], cwd=SERVER, env=env)

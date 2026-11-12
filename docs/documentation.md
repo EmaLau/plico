@@ -1,4 +1,4 @@
-# Universal-PDF — Documentation
+# Plico — Documentation
 
 🇬🇧 **English** · 🇮🇹 [Italiano](documentazione.md)
 
@@ -22,7 +22,7 @@ This is the complete guide: installation, configuration, every part of the servi
 
 # Overview
 
-Universal-PDF is a set of PDF tools on a single web page, running on your own server. It is a FastAPI service with no database: every request receives its files, works on them in a temporary folder, sends back the result and deletes the folder. The only things kept on disk are the settings in `DATA_DIR` (API key hashes, saved chains, switches).
+Plico is a set of PDF tools on a single web page, running on your own server. It is a FastAPI service with no database: every request receives its files, works on them in a temporary folder, sends back the result and deletes the folder. The only things kept on disk are the settings in `DATA_DIR` (API key hashes, saved chains, switches).
 
 | Group | Tools |
 |---|---|
@@ -45,8 +45,8 @@ Universal-PDF is a set of PDF tools on a single web page, running on your own se
 ## With Docker Compose (recommended)
 
 ```bash
-git clone https://github.com/EmaLau/universal-pdf.git
-cd universal-pdf
+git clone https://github.com/EmaLau/plico.git
+cd plico
 cp .env.example .env        # optional: change what you need
 docker compose up -d --build
 ```
@@ -54,17 +54,17 @@ docker compose up -d --build
 Open <http://localhost:8080>, then check every tool:
 
 ```bash
-docker compose exec universal-pdf python3 /app/selftest.py
+docker compose exec plico python3 /app/selftest.py
 ```
 
-By default the service listens only on `127.0.0.1`. To reach it from other devices set `UPDF_BIND=0.0.0.0` in `.env`, but read [Security and privacy](#security-and-privacy) first.
+By default the service listens only on `127.0.0.1`. To reach it from other devices set `PLICO_BIND=0.0.0.0` in `.env`, but read [Security and privacy](#security-and-privacy) first.
 
 ## With Docker, without Compose
 
 ```bash
-docker build -t universal-pdf server
-docker run -d --name universal-pdf -p 127.0.0.1:8080:8080 -v updf-work:/work \
-  -e UPDF_ADMIN_PASSWORD=change-me universal-pdf
+docker build -t plico server
+docker run -d --name plico -p 127.0.0.1:8080:8080 -v plico-work:/work \
+  -e PLICO_ADMIN_PASSWORD=change-me plico
 ```
 
 `--build-arg UID=… --build-arg GID=…` choose the user that runs the service (default 1000). It must own the `/work` volume.
@@ -76,7 +76,7 @@ You need Python 3.11 or newer, Ghostscript, and for OCR `ocrmypdf` with Tesserac
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
 pip install -r server/requirements.txt
-cd server && WORK_DIR=/tmp/updf uvicorn server:app --port 8080
+cd server && WORK_DIR=/tmp/plico uvicorn server:app --port 8080
 ```
 
 # Configuration
@@ -85,14 +85,14 @@ All settings are environment variables. With Compose they are read from `.env`; 
 
 | Variable | Default | Description |
 |---|---|---|
-| `UPDF_BIND` / `UPDF_PORT` | `127.0.0.1` / `8080` | Where Compose publishes the service |
+| `PLICO_BIND` / `PLICO_PORT` | `127.0.0.1` / `8080` | Where Compose publishes the service |
 | `MAX_UPLOAD_MB` | `0` | Maximum size of each uploaded file; `0` = no limit |
 | `MAX_OUTPUT_MB` | `4096` | Maximum total size of the results of one request |
 | `MAX_PARALLEL` | `2` | Heavy jobs running at the same time; the others wait |
 | `MAX_PAGE_MPX` | `50` | Maximum megapixels of a page in *PDF to images*; larger pages get a lower DPI |
-| `UPDF_CPUS` / `UPDF_MEMORY` | `4` / `3G` | Container limits (Compose) |
-| `UPDF_ADMIN_PASSWORD` | empty | Password of `/admin`. Can also be written in `DATA_DIR/admin-password` |
-| `UPDF_ADMIN_LOGIN` | `true` | Initial value of the *admin password* switch |
+| `PLICO_CPUS` / `PLICO_MEMORY` | `4` / `3G` | Container limits (Compose) |
+| `PLICO_ADMIN_PASSWORD` | empty | Password of `/admin`. Can also be written in `DATA_DIR/admin-password` |
+| `PLICO_ADMIN_LOGIN` | `true` | Initial value of the *admin password* switch |
 | `API_REQUIRE_KEY` | `false` | Initial value of the *key required for the API* switch |
 | `DATA_DIR` | `/work/data` | Settings, key hashes, chains, signing secret |
 | `WORK_DIR` | `/work` (image) | Base folder for temporary files |
@@ -100,11 +100,11 @@ All settings are environment variables. With Compose they are read from `.env`; 
 | `CONVERTER_TIMEOUT` | `600` | Seconds to wait for a conversion |
 | `NEXTCLOUD_URL` / `NEXTCLOUD_USER` | empty | Magic folder: Nextcloud address and user |
 | `NEXTCLOUD_PASSWORD` / `NEXTCLOUD_PASSWORD_FILE` | empty | App password, directly or from a file |
-| `NEXTCLOUD_MAGIC_DIR` / `NEXTCLOUD_POLL_SECONDS` | `Universal-PDF` / `60` | Magic folder name and check interval (minimum 15) |
-| `UPDF_UID` / `UPDF_GID` | `1000` | User inside the container (build arguments) |
+| `NEXTCLOUD_MAGIC_DIR` / `NEXTCLOUD_POLL_SECONDS` | `Plico` / `60` | Magic folder name and check interval (minimum 15) |
+| `PLICO_UID` / `PLICO_GID` | `1000` | User inside the container (build arguments) |
 | `TZ` | `Europe/Rome` | Time zone (used by `{date}` in headers and footers) |
 
-The two switches (`UPDF_ADMIN_LOGIN`, `API_REQUIRE_KEY`) are only *initial* values: once changed on `/admin` they are saved in `DATA_DIR/settings.json` and win over the environment.
+The two switches (`PLICO_ADMIN_LOGIN`, `API_REQUIRE_KEY`) are only *initial* values: once changed on `/admin` they are saved in `DATA_DIR/settings.json` and win over the environment.
 
 ## Working directory
 
@@ -129,14 +129,14 @@ The home page shows every tool as a card, grouped as in the table above. A tool 
 
 # The admin page
 
-`/admin` manages API keys, saved chains and the two switches. It is enabled when there is an admin password (`UPDF_ADMIN_PASSWORD` or the `admin-password` file), or when the *admin password* switch is off.
+`/admin` manages API keys, saved chains and the two switches. It is enabled when there is an admin password (`PLICO_ADMIN_PASSWORD` or the `admin-password` file), or when the *admin password* switch is off.
 
 - **Login.** The password gives a signed cookie valid for 12 hours, limited to `/admin`. Five wrong attempts from the same address in 10 minutes block the login for a while (`429`).
-- **API keys.** Each key has a name and a list of permissions, one per tool (see the table in [api.md](api.md#api-keys)). The full key (`updf_` + 43 characters) is shown once; the server keeps only its SHA-256 hash, the first 10 characters to recognise it, and the time it was last used (saved at most once a minute). Keys can be renamed, have their permissions changed, or be revoked.
+- **API keys.** Each key has a name and a list of permissions, one per tool (see the table in [api.md](api.md#api-keys)). The full key (`plico_` + 43 characters) is shown once; the server keeps only its SHA-256 hash, the first 10 characters to recognise it, and the time it was last used (saved at most once a minute). Keys can be renamed, have their permissions changed, or be revoked.
 - **Key required for the API.** Off: the API answers anyone who can reach it, like the page. On: calls with neither a key nor the page's session cookie get `401`. The page keeps working, because opening it gives a signed session cookie (30 days). Anyone who can open the page can get that cookie, so this switch keeps scripts in order; it does not protect against people who can reach the service.
 - **Admin password.** Off: `/admin` opens without a password, with a warning. Useful only on a network where every user is trusted.
 
-Changes made on `/admin` must come from the page itself: they need the `X-Requested-With: universal-pdf` header, which another site's page cannot send.
+Changes made on `/admin` must come from the page itself: they need the `X-Requested-With: plico` header, which another site's page cannot send.
 
 # Saved chains
 
@@ -150,7 +150,7 @@ A chain is a list of up to 12 steps run one after the other on the same PDF, for
 
 # Office documents (Universal Converter)
 
-With `CONVERTER_URL` pointing to a [Universal Converter](https://github.com/EmaLau/universal-converter), the *Word, Excel, PowerPoint ↔ PDF* tools appear. Universal-PDF sends the file to the converter's job API, waits for it (`CONVERTER_TIMEOUT`), downloads the result and deletes the job on the converter.
+With `CONVERTER_URL` pointing to a [Universal Converter](https://github.com/EmaLau/universal-converter), the *Word, Excel, PowerPoint ↔ PDF* tools appear. Plico sends the file to the converter's job API, waits for it (`CONVERTER_TIMEOUT`), downloads the result and deletes the job on the converter.
 
 - To PDF: `.doc .docx .odt .rtf .txt .xls .xlsx .ods .csv .ppt .pptx .odp`.
 - From PDF: `docx`, `odt`, `xlsx`, `pptx`, `txt`.
@@ -165,15 +165,15 @@ The app in `nextcloud-app/` (id `strumentipdf`, Nextcloud 30–36) adds a *Strum
 ```bash
 cp -r nextcloud-app /path/to/nextcloud/custom_apps/strumentipdf
 occ app:enable strumentipdf
-occ config:app:set strumentipdf pdf_url --value=http://universal-pdf-address:8080
-occ config:app:set strumentipdf api_key --value=updf_...      # only if Key required for the API is on
+occ config:app:set strumentipdf pdf_url --value=http://plico-address:8080
+occ config:app:set strumentipdf api_key --value=plico_...      # only if Key required for the API is on
 occ config:system:set allow_local_remote_servers --value=true --type=boolean   # if the address is on the local network
 ```
 
 ## How it works
 
 - The page script (`js/strumentipdf.js`, no build step) registers the menu with the Files app. It receives, as initial state, the optional tools available on the server (`/api/features`) and the saved chains, cached for 5 minutes: a new chain appears in the menu within 5 minutes.
-- Clicking a tool calls the app's `POST /apps/strumentipdf/run` with the file ids. The PHP controller reads the files as the logged-in user, sends them to Universal-PDF (`lib/Service/PdfClient.php`), and writes the result in the same folder.
+- Clicking a tool calls the app's `POST /apps/strumentipdf/run` with the file ids. The PHP controller reads the files as the logged-in user, sends them to Plico (`lib/Service/PdfClient.php`), and writes the result in the same folder.
 - The user needs write permission on the folder. Very large files take as long as the tool takes; the browser shows a notice while waiting.
 
 ## Common problems
@@ -191,9 +191,9 @@ The server watches a folder in one Nextcloud account and processes the PDFs drop
 
 ## How it works
 
-1. Every `NEXTCLOUD_POLL_SECONDS` the server lists `Universal-PDF/` over WebDAV.
+1. Every `NEXTCLOUD_POLL_SECONDS` the server lists `Plico/` over WebDAV.
 2. Every saved chain with *magic folder* switched on (on `/admin`) gets a subfolder with its name.
-3. A PDF dropped in `Universal-PDF/<chain>/` is downloaded, processed with that chain, and:
+3. A PDF dropped in `Plico/<chain>/` is downloaded, processed with that chain, and:
    - the result goes to `<chain>/Fatti/`;
    - the original moves to `<chain>/Originali/`;
    - if the chain fails, the original moves to `<chain>/Errori/` with a `.txt` explaining why.
@@ -230,7 +230,7 @@ browser / script ──► guard (middleware) ──► endpoint ──► Job f
 
 - **Pixels per page** (`MAX_PAGE_MPX`): a 1 KB PDF can declare a page of 5 × 5 metres; at 300 DPI that would be a 60,000 × 60,000 image and the container would run out of memory. Larger pages are rendered at a lower DPI; `X-Dpi-Reduced` says how many.
 - **Output size** (`MAX_OUTPUT_MB`): counted file by file as results are produced (`ops.Output`), so a request stops as soon as it goes over.
-- **Parallel jobs** (`MAX_PARALLEL`) and container limits (`UPDF_CPUS`, `UPDF_MEMORY`).
+- **Parallel jobs** (`MAX_PARALLEL`) and container limits (`PLICO_CPUS`, `PLICO_MEMORY`).
 - **External programs** (Ghostscript with `-dSAFER`, OCRmyPDF) run with a timeout, without a shell.
 - **Errors**: unexpected exceptions answer a generic `500` and the details go to the log only.
 
@@ -266,7 +266,7 @@ The page texts are in `server/static/i18n.js` (Italian and English). API errors 
 ## Selftest
 
 ```bash
-docker compose exec universal-pdf python3 /app/selftest.py
+docker compose exec plico python3 /app/selftest.py
 ```
 
 It calls every tool of the running server with generated files and checks the results; at the end it checks that no request folder is left over (it waits up to 5 seconds, because folders are deleted just after the answer). Some checks run only with the related setting:
@@ -275,7 +275,7 @@ It calls every tool of the running server with generated files and checks the re
 |---|---|
 | file over the limit → `413` | `MAX_UPLOAD_MB` between 1 and 200 |
 | output over the limit → `413` | `MAX_OUTPUT_MB` up to 10 |
-| API keys, switches, revocation | `UPDF_ADMIN_PASSWORD` is set in the environment |
+| API keys, switches, revocation | `PLICO_ADMIN_PASSWORD` is set in the environment |
 | Office | `CONVERTER_URL` is set |
 
 The CI runs it with small limits and an admin password, so every check runs there.
@@ -285,7 +285,7 @@ The CI runs it with small limits and an admin password, so every check runs ther
 ```bash
 git pull
 docker compose up -d --build
-docker compose exec universal-pdf python3 /app/selftest.py
+docker compose exec plico python3 /app/selftest.py
 ```
 
 `DATA_DIR` is in the volume, so keys, chains and switches stay.
@@ -293,7 +293,7 @@ docker compose exec universal-pdf python3 /app/selftest.py
 ## Logs
 
 ```bash
-docker compose logs -f universal-pdf
+docker compose logs -f plico
 ```
 
 Access logs are off (`--no-access-log`): file names are not written anywhere. The log has start-up messages, unexpected errors with their traceback, and the magic folder activity.
@@ -352,7 +352,7 @@ Several parts are not specific to PDFs and were written to be copied into other 
 ## API keys and admin page (like Gokapi)
 
 - **Files**: `server/apikeys.py`, `server/static/admin.html`, the admin routes in `server.py` (`/admin`, `/admin/api/*`), the `guard` middleware.
-- **Change**: `PERMISSIONS` (one per feature of the other service), the cookie names (`updf_session`, `updf_admin`), the key prefix (`updf_`), the `X-Requested-With` value, `PATH_PERM` (path → permission).
+- **Change**: `PERMISSIONS` (one per feature of the other service), the cookie names (`plico_session`, `plico_admin`), the key prefix (`plico_`), the `X-Requested-With` value, `PATH_PERM` (path → permission).
 - **Keep**: keys checked in the middleware *before* the body is read; SHA-256 hashes compared with `hmac.compare_digest`; the key shown once; `last_used` saved at most once a minute and flushed at shutdown; the two switches saved in `settings.json`, with the environment as initial value; login rate limit.
 - **Watch**: clients of the other service (for the converter, its Nextcloud app *Converti in*) must be able to send a key when *key required* is on.
 

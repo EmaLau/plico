@@ -1,4 +1,4 @@
-# Universal-PDF: strumenti PDF self-hosted sulla porta 8080.
+# Plico: strumenti PDF self-hosted sulla porta 8080.
 FROM debian:trixie-slim
 ENV DEBIAN_FRONTEND=noninteractive LANG=C.UTF-8 PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 COPY requirements.txt /tmp/requirements.txt
@@ -9,8 +9,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* /root/.cache /tmp/requirements.txt
 ARG UID=1000
 ARG GID=1000
-RUN groupadd -g "$GID" upd 2>/dev/null || true \
-    && useradd -u "$UID" -g "$GID" -M -d /work -s /usr/sbin/nologin upd 2>/dev/null || true \
+RUN groupadd -g "$GID" plico 2>/dev/null || true \
+    && useradd -u "$UID" -g "$GID" -M -d /work -s /usr/sbin/nologin plico 2>/dev/null || true \
     && mkdir -p /work && chown "$UID:$GID" /work
 COPY server.py apikeys.py i18n.py ops.py chains.py converter.py magic.py /app/
 COPY static /app/static

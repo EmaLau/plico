@@ -357,22 +357,22 @@ def test_magic_folder(tmp_path):
     chs = [{"name": "Numera", "magic": True, "steps": [{"op": "stamp", "numbers": True}]},
            {"name": "Spenta", "magic": False, "steps": [{"op": "rotate"}]}]
     stats = {"processed": 0, "errors": 0}
-    magic.process_once(dav, "Universal-PDF", chs, tmp_path, stats)  # crea le cartelle
-    assert "Universal-PDF/Numera" in dav.files and "Universal-PDF/Spenta" not in dav.files
-    dav.files["Universal-PDF/Numera/fattura.pdf"] = PDF
-    dav.files["Universal-PDF/Numera/rotto.pdf"] = b"%PDF niente"
-    n = magic.process_once(dav, "Universal-PDF", chs, tmp_path, stats)
+    magic.process_once(dav, "Plico", chs, tmp_path, stats)  # crea le cartelle
+    assert "Plico/Numera" in dav.files and "Plico/Spenta" not in dav.files
+    dav.files["Plico/Numera/fattura.pdf"] = PDF
+    dav.files["Plico/Numera/rotto.pdf"] = b"%PDF niente"
+    n = magic.process_once(dav, "Plico", chs, tmp_path, stats)
     assert n == 1 and stats == {"processed": 1, "errors": 1}
-    out = dav.files["Universal-PDF/Numera/Fatti/fattura.pdf"]
+    out = dav.files["Plico/Numera/Fatti/fattura.pdf"]
     assert "1" in fitz.open("pdf", out)[0].get_text()
-    assert "Universal-PDF/Numera/Originali/fattura.pdf" in dav.files
-    assert "Universal-PDF/Numera/Errori/rotto.pdf" in dav.files
-    assert "non e' un PDF valido" in dav.files["Universal-PDF/Numera/Errori/rotto.pdf.txt"].decode()
-    assert "Universal-PDF/Numera/fattura.pdf" not in dav.files
+    assert "Plico/Numera/Originali/fattura.pdf" in dav.files
+    assert "Plico/Numera/Errori/rotto.pdf" in dav.files
+    assert "non e' un PDF valido" in dav.files["Plico/Numera/Errori/rotto.pdf.txt"].decode()
+    assert "Plico/Numera/fattura.pdf" not in dav.files
     # un secondo file con lo stesso nome non sovrascrive il primo
-    dav.files["Universal-PDF/Numera/fattura.pdf"] = PDF
-    magic.process_once(dav, "Universal-PDF", chs, tmp_path, stats)
-    assert "Universal-PDF/Numera/Fatti/fattura (2).pdf" in dav.files
+    dav.files["Plico/Numera/fattura.pdf"] = PDF
+    magic.process_once(dav, "Plico", chs, tmp_path, stats)
+    assert "Plico/Numera/Fatti/fattura (2).pdf" in dav.files
 
 
 def test_chain_store_defaults(tmp_path):

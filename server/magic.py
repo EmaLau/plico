@@ -2,8 +2,8 @@
 
 Si attiva con NEXTCLOUD_URL, NEXTCLOUD_USER e NEXTCLOUD_PASSWORD (meglio una password per le app),
 oppure NEXTCLOUD_PASSWORD_FILE con il percorso di un file che contiene la password.
-Dentro la cartella NEXTCLOUD_MAGIC_DIR (predefinita "Universal-PDF") c'e' una sottocartella per ogni catena
-con "cartella magica" attiva nella pagina /admin. Un PDF messo in "Universal-PDF/<catena>/" viene elaborato:
+Dentro la cartella NEXTCLOUD_MAGIC_DIR (predefinita "Plico") c'e' una sottocartella per ogni catena
+con "cartella magica" attiva nella pagina /admin. Un PDF messo in "Plico/<catena>/" viene elaborato:
 il risultato va in "<catena>/Fatti/", l'originale in "<catena>/Originali/". Se qualcosa va storto,
 l'originale va in "<catena>/Errori/" con un file .txt che spiega il motivo.
 Il controllo si ripete ogni NEXTCLOUD_POLL_SECONDS secondi (predefinito 60).
@@ -28,7 +28,7 @@ from fastapi import HTTPException
 import i18n
 import ops
 
-log = logging.getLogger("universal-pdf.magic")
+log = logging.getLogger("plico.magic")
 DONE, ORIGINALS, ERRORS = "Fatti", "Originali", "Errori"
 
 
@@ -90,7 +90,7 @@ def config() -> dict | None:
             log.error("NEXTCLOUD_PASSWORD_FILE non leggibile: %s", e)
     if not (url and user and pw):
         return None
-    return {"url": url, "user": user, "password": pw, "dir": os.environ.get("NEXTCLOUD_MAGIC_DIR", "Universal-PDF").strip("/"),
+    return {"url": url, "user": user, "password": pw, "dir": os.environ.get("NEXTCLOUD_MAGIC_DIR", "Plico").strip("/"),
             "poll": max(15, int(os.environ.get("NEXTCLOUD_POLL_SECONDS", "60")))}
 
 

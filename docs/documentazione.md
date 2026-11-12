@@ -1,4 +1,4 @@
-# Universal-PDF — Documentazione
+# Plico — Documentazione
 
 🇬🇧 [English](documentation.md) · 🇮🇹 **Italiano**
 
@@ -22,7 +22,7 @@ Questa è la guida completa: installazione, configurazione, ogni parte del servi
 
 # Panoramica
 
-Universal-PDF è un insieme di strumenti PDF in una sola pagina web, sul tuo server. È un servizio FastAPI senza database: ogni richiesta riceve i file, li elabora in una cartella temporanea, restituisce il risultato e cancella la cartella. Sul disco restano solo le impostazioni in `DATA_DIR` (hash delle chiavi API, catene salvate, interruttori).
+Plico è un insieme di strumenti PDF in una sola pagina web, sul tuo server. È un servizio FastAPI senza database: ogni richiesta riceve i file, li elabora in una cartella temporanea, restituisce il risultato e cancella la cartella. Sul disco restano solo le impostazioni in `DATA_DIR` (hash delle chiavi API, catene salvate, interruttori).
 
 | Gruppo | Strumenti |
 |---|---|
@@ -45,8 +45,8 @@ Universal-PDF è un insieme di strumenti PDF in una sola pagina web, sul tuo ser
 ## Con Docker Compose (consigliato)
 
 ```bash
-git clone https://github.com/EmaLau/universal-pdf.git
-cd universal-pdf
+git clone https://github.com/EmaLau/plico.git
+cd plico
 cp .env.example .env        # facoltativo: cambia quello che ti serve
 docker compose up -d --build
 ```
@@ -54,17 +54,17 @@ docker compose up -d --build
 Apri <http://localhost:8080>, poi controlla tutti gli strumenti:
 
 ```bash
-docker compose exec universal-pdf python3 /app/selftest.py
+docker compose exec plico python3 /app/selftest.py
 ```
 
-Il servizio ascolta solo su `127.0.0.1`. Per raggiungerlo da altri dispositivi imposta `UPDF_BIND=0.0.0.0` in `.env`, ma prima leggi [Sicurezza e privacy](#sicurezza-e-privacy).
+Il servizio ascolta solo su `127.0.0.1`. Per raggiungerlo da altri dispositivi imposta `PLICO_BIND=0.0.0.0` in `.env`, ma prima leggi [Sicurezza e privacy](#sicurezza-e-privacy).
 
 ## Con Docker, senza Compose
 
 ```bash
-docker build -t universal-pdf server
-docker run -d --name universal-pdf -p 127.0.0.1:8080:8080 -v updf-work:/work \
-  -e UPDF_ADMIN_PASSWORD=cambiami universal-pdf
+docker build -t plico server
+docker run -d --name plico -p 127.0.0.1:8080:8080 -v plico-work:/work \
+  -e PLICO_ADMIN_PASSWORD=cambiami plico
 ```
 
 `--build-arg UID=… --build-arg GID=…` scelgono l'utente che esegue il servizio (predefinito 1000). Deve essere il proprietario del volume `/work`.
@@ -76,7 +76,7 @@ Servono Python 3.11 o più recente, Ghostscript e, per l'OCR, `ocrmypdf` con Tes
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
 pip install -r server/requirements.txt
-cd server && WORK_DIR=/tmp/updf uvicorn server:app --port 8080
+cd server && WORK_DIR=/tmp/plico uvicorn server:app --port 8080
 ```
 
 # Configurazione
@@ -85,14 +85,14 @@ Le impostazioni sono variabili d'ambiente. Con Compose si leggono da `.env`; `.e
 
 | Variabile | Predefinito | Descrizione |
 |---|---|---|
-| `UPDF_BIND` / `UPDF_PORT` | `127.0.0.1` / `8080` | Dove Compose pubblica il servizio |
+| `PLICO_BIND` / `PLICO_PORT` | `127.0.0.1` / `8080` | Dove Compose pubblica il servizio |
 | `MAX_UPLOAD_MB` | `0` | Dimensione massima di ogni file caricato; `0` = nessun limite |
 | `MAX_OUTPUT_MB` | `4096` | Dimensione massima dei risultati di una richiesta |
 | `MAX_PARALLEL` | `2` | Lavori pesanti eseguiti insieme; gli altri aspettano |
 | `MAX_PAGE_MPX` | `50` | Megapixel massimi di una pagina in *PDF in immagini*; le pagine più grandi hanno dpi più bassi |
-| `UPDF_CPUS` / `UPDF_MEMORY` | `4` / `3G` | Limiti del container (Compose) |
-| `UPDF_ADMIN_PASSWORD` | vuota | Password di `/admin`. Si può anche scrivere in `DATA_DIR/admin-password` |
-| `UPDF_ADMIN_LOGIN` | `true` | Valore iniziale dell'interruttore *password per l'area admin* |
+| `PLICO_CPUS` / `PLICO_MEMORY` | `4` / `3G` | Limiti del container (Compose) |
+| `PLICO_ADMIN_PASSWORD` | vuota | Password di `/admin`. Si può anche scrivere in `DATA_DIR/admin-password` |
+| `PLICO_ADMIN_LOGIN` | `true` | Valore iniziale dell'interruttore *password per l'area admin* |
 | `API_REQUIRE_KEY` | `false` | Valore iniziale dell'interruttore *chiave obbligatoria per le API* |
 | `DATA_DIR` | `/work/data` | Impostazioni, hash delle chiavi, catene, segreto per i cookie |
 | `WORK_DIR` | `/work` (immagine) | Cartella dei file temporanei |
@@ -100,11 +100,11 @@ Le impostazioni sono variabili d'ambiente. Con Compose si leggono da `.env`; `.e
 | `CONVERTER_TIMEOUT` | `600` | Secondi di attesa per una conversione |
 | `NEXTCLOUD_URL` / `NEXTCLOUD_USER` | vuote | Cartella magica: indirizzo di Nextcloud e utente |
 | `NEXTCLOUD_PASSWORD` / `NEXTCLOUD_PASSWORD_FILE` | vuote | Password per le app, scritta qui o letta da un file |
-| `NEXTCLOUD_MAGIC_DIR` / `NEXTCLOUD_POLL_SECONDS` | `Universal-PDF` / `60` | Nome della cartella magica e ogni quanto si controlla (minimo 15) |
-| `UPDF_UID` / `UPDF_GID` | `1000` | Utente dentro il container (argomenti di build) |
+| `NEXTCLOUD_MAGIC_DIR` / `NEXTCLOUD_POLL_SECONDS` | `Plico` / `60` | Nome della cartella magica e ogni quanto si controlla (minimo 15) |
+| `PLICO_UID` / `PLICO_GID` | `1000` | Utente dentro il container (argomenti di build) |
 | `TZ` | `Europe/Rome` | Fuso orario (usato da `{date}` in intestazioni e piè di pagina) |
 
-I due interruttori (`UPDF_ADMIN_LOGIN`, `API_REQUIRE_KEY`) danno solo il valore *iniziale*: una volta cambiati in `/admin` vengono salvati in `DATA_DIR/settings.json` e prevalgono sulle variabili.
+I due interruttori (`PLICO_ADMIN_LOGIN`, `API_REQUIRE_KEY`) danno solo il valore *iniziale*: una volta cambiati in `/admin` vengono salvati in `DATA_DIR/settings.json` e prevalgono sulle variabili.
 
 ## Cartella di lavoro
 
@@ -129,14 +129,14 @@ La pagina iniziale mostra ogni strumento come una scheda, divisi nei gruppi dell
 
 # La pagina admin
 
-`/admin` gestisce chiavi API, catene salvate e i due interruttori. È attiva se c'è una password admin (`UPDF_ADMIN_PASSWORD` o il file `admin-password`), oppure se l'interruttore *password per l'area admin* è spento.
+`/admin` gestisce chiavi API, catene salvate e i due interruttori. È attiva se c'è una password admin (`PLICO_ADMIN_PASSWORD` o il file `admin-password`), oppure se l'interruttore *password per l'area admin* è spento.
 
 - **Accesso.** La password dà un cookie firmato valido 12 ore, limitato a `/admin`. Cinque tentativi sbagliati dallo stesso indirizzo in 10 minuti bloccano l'accesso per un po' (`429`).
-- **Chiavi API.** Ogni chiave ha un nome e un elenco di permessi, uno per strumento (vedi la tabella in [api.md](api.md#api-keys)). La chiave intera (`updf_` + 43 caratteri) si vede una sola volta; il server tiene solo l'hash SHA-256, i primi 10 caratteri per riconoscerla e l'ora dell'ultimo uso (salvata al massimo una volta al minuto). Le chiavi si possono rinominare, cambiare di permessi o revocare.
+- **Chiavi API.** Ogni chiave ha un nome e un elenco di permessi, uno per strumento (vedi la tabella in [api.md](api.md#api-keys)). La chiave intera (`plico_` + 43 caratteri) si vede una sola volta; il server tiene solo l'hash SHA-256, i primi 10 caratteri per riconoscerla e l'ora dell'ultimo uso (salvata al massimo una volta al minuto). Le chiavi si possono rinominare, cambiare di permessi o revocare.
 - **Chiave obbligatoria per le API.** Spento: l'API risponde a chiunque la raggiunga, come la pagina. Acceso: le chiamate senza chiave e senza il cookie di sessione della pagina ricevono `401`. La pagina continua a funzionare, perché aprendola si riceve un cookie di sessione firmato (30 giorni). Chiunque apra la pagina può ottenere quel cookie: l'interruttore mette ordine negli script, non protegge da chi raggiunge il servizio.
 - **Password per l'area admin.** Spento: `/admin` si apre senza password, con un avviso. Ha senso solo in una rete dove tutti sono fidati.
 
-Le modifiche fatte in `/admin` devono arrivare dalla pagina stessa: serve l'intestazione `X-Requested-With: universal-pdf`, che la pagina di un altro sito non può mandare.
+Le modifiche fatte in `/admin` devono arrivare dalla pagina stessa: serve l'intestazione `X-Requested-With: plico`, che la pagina di un altro sito non può mandare.
 
 # Catene salvate
 
@@ -150,7 +150,7 @@ Una catena è un elenco di massimo 12 passi eseguiti uno dopo l'altro sullo stes
 
 # Documenti Office (Convertitore universale)
 
-Con `CONVERTER_URL` che punta a un [Convertitore universale](https://github.com/EmaLau/universal-converter) compaiono gli strumenti *Word, Excel, PowerPoint ↔ PDF*. Universal-PDF manda il file all'API dei lavori del convertitore, aspetta (`CONVERTER_TIMEOUT`), scarica il risultato e cancella il lavoro sul convertitore.
+Con `CONVERTER_URL` che punta a un [Convertitore universale](https://github.com/EmaLau/universal-converter) compaiono gli strumenti *Word, Excel, PowerPoint ↔ PDF*. Plico manda il file all'API dei lavori del convertitore, aspetta (`CONVERTER_TIMEOUT`), scarica il risultato e cancella il lavoro sul convertitore.
 
 - In PDF: `.doc .docx .odt .rtf .txt .xls .xlsx .ods .csv .ppt .pptx .odp`.
 - Da PDF: `docx`, `odt`, `xlsx`, `pptx`, `txt`.
@@ -165,15 +165,15 @@ L'app in `nextcloud-app/` (id `strumentipdf`, Nextcloud 30–36) aggiunge ai PDF
 ```bash
 cp -r nextcloud-app /percorso/di/nextcloud/custom_apps/strumentipdf
 occ app:enable strumentipdf
-occ config:app:set strumentipdf pdf_url --value=http://indirizzo-di-universal-pdf:8080
-occ config:app:set strumentipdf api_key --value=updf_...      # solo se la chiave è obbligatoria
+occ config:app:set strumentipdf pdf_url --value=http://indirizzo-di-plico:8080
+occ config:app:set strumentipdf api_key --value=plico_...      # solo se la chiave è obbligatoria
 occ config:system:set allow_local_remote_servers --value=true --type=boolean   # se l'indirizzo è nella rete locale
 ```
 
 ## Come funziona
 
 - Lo script della pagina (`js/strumentipdf.js`, senza compilazione) registra il menu nell'app File. Riceve come stato iniziale gli strumenti facoltativi attivi sul server (`/api/features`) e le catene salvate, tenuti in cache 5 minuti: una catena nuova compare nel menu entro 5 minuti.
-- Scegliendo uno strumento, la pagina chiama `POST /apps/strumentipdf/run` con gli id dei file. Il controller PHP legge i file come l'utente collegato, li manda a Universal-PDF (`lib/Service/PdfClient.php`) e scrive il risultato nella stessa cartella.
+- Scegliendo uno strumento, la pagina chiama `POST /apps/strumentipdf/run` con gli id dei file. Il controller PHP legge i file come l'utente collegato, li manda a Plico (`lib/Service/PdfClient.php`) e scrive il risultato nella stessa cartella.
 - L'utente deve poter scrivere nella cartella. Con file molto grandi si aspetta quanto ci mette lo strumento; intanto il browser mostra un avviso.
 
 ## Problemi comuni
@@ -191,9 +191,9 @@ Il server controlla una cartella di un account Nextcloud ed elabora i PDF che ci
 
 ## Come funziona
 
-1. Ogni `NEXTCLOUD_POLL_SECONDS` il server legge `Universal-PDF/` via WebDAV.
+1. Ogni `NEXTCLOUD_POLL_SECONDS` il server legge `Plico/` via WebDAV.
 2. Ogni catena salvata con *cartella magica* attiva (in `/admin`) ha una sottocartella con il suo nome.
-3. Un PDF messo in `Universal-PDF/<catena>/` viene scaricato ed elaborato con quella catena, poi:
+3. Un PDF messo in `Plico/<catena>/` viene scaricato ed elaborato con quella catena, poi:
    - il risultato va in `<catena>/Fatti/`;
    - l'originale va in `<catena>/Originali/`;
    - se la catena fallisce, l'originale va in `<catena>/Errori/` con un `.txt` che spiega il motivo.
@@ -230,7 +230,7 @@ browser / script ──► guard (middleware) ──► endpoint ──► carte
 
 - **Pixel per pagina** (`MAX_PAGE_MPX`): un PDF di 1 KB può dichiarare una pagina di 5 × 5 metri; a 300 dpi sarebbe un'immagine di 60.000 × 60.000 pixel e il container finirebbe la memoria. Le pagine più grandi vengono rese a dpi più bassi; `X-Dpi-Reduced` dice quante sono.
 - **Dimensione dei risultati** (`MAX_OUTPUT_MB`): contata file per file mentre i risultati vengono prodotti (`ops.Output`), così la richiesta si ferma appena supera il limite.
-- **Lavori in parallelo** (`MAX_PARALLEL`) e limiti del container (`UPDF_CPUS`, `UPDF_MEMORY`).
+- **Lavori in parallelo** (`MAX_PARALLEL`) e limiti del container (`PLICO_CPUS`, `PLICO_MEMORY`).
 - **Programmi esterni** (Ghostscript con `-dSAFER`, OCRmyPDF) eseguiti con un tempo massimo, senza shell.
 - **Errori**: le eccezioni impreviste rispondono con un `500` generico, e i dettagli vanno solo nel log.
 
@@ -266,7 +266,7 @@ I testi della pagina sono in `server/static/i18n.js` (italiano e inglese). Gli e
 ## Selftest
 
 ```bash
-docker compose exec universal-pdf python3 /app/selftest.py
+docker compose exec plico python3 /app/selftest.py
 ```
 
 Chiama ogni strumento del server in funzione con file generati e controlla i risultati; alla fine verifica che non sia rimasta nessuna cartella di richiesta (aspetta fino a 5 secondi, perché le cartelle si cancellano subito dopo la risposta). Alcuni controlli partono solo con l'impostazione relativa:
@@ -275,7 +275,7 @@ Chiama ogni strumento del server in funzione con file generati e controlla i ris
 |---|---|
 | file oltre il limite → `413` | `MAX_UPLOAD_MB` tra 1 e 200 |
 | risultato oltre il limite → `413` | `MAX_OUTPUT_MB` fino a 10 |
-| chiavi API, interruttori, revoca | `UPDF_ADMIN_PASSWORD` è impostata nell'ambiente |
+| chiavi API, interruttori, revoca | `PLICO_ADMIN_PASSWORD` è impostata nell'ambiente |
 | Office | `CONVERTER_URL` è impostata |
 
 La CI lo esegue con limiti piccoli e una password admin, così lì partono tutti i controlli.
@@ -285,7 +285,7 @@ La CI lo esegue con limiti piccoli e una password admin, così lì partono tutti
 ```bash
 git pull
 docker compose up -d --build
-docker compose exec universal-pdf python3 /app/selftest.py
+docker compose exec plico python3 /app/selftest.py
 ```
 
 `DATA_DIR` sta nel volume, quindi chiavi, catene e interruttori restano.
@@ -293,7 +293,7 @@ docker compose exec universal-pdf python3 /app/selftest.py
 ## Log
 
 ```bash
-docker compose logs -f universal-pdf
+docker compose logs -f plico
 ```
 
 Il log degli accessi è spento (`--no-access-log`): i nomi dei file non vengono scritti da nessuna parte. Nel log ci sono i messaggi di avvio, gli errori imprevisti con il traceback e l'attività della cartella magica.
@@ -352,7 +352,7 @@ Diverse parti non riguardano i PDF e sono state scritte per essere copiate in al
 ## Chiavi API e pagina admin (come in Gokapi)
 
 - **File**: `server/apikeys.py`, `server/static/admin.html`, le route admin in `server.py` (`/admin`, `/admin/api/*`), il middleware `guard`.
-- **Da cambiare**: `PERMISSIONS` (uno per funzione dell'altro servizio), i nomi dei cookie (`updf_session`, `updf_admin`), il prefisso delle chiavi (`updf_`), il valore di `X-Requested-With`, `PATH_PERM` (percorso → permesso).
+- **Da cambiare**: `PERMISSIONS` (uno per funzione dell'altro servizio), i nomi dei cookie (`plico_session`, `plico_admin`), il prefisso delle chiavi (`plico_`), il valore di `X-Requested-With`, `PATH_PERM` (percorso → permesso).
 - **Da tenere**: chiavi controllate nel middleware *prima* di leggere il corpo della richiesta; hash SHA-256 confrontati con `hmac.compare_digest`; chiave mostrata una volta sola; `last_used` salvato al massimo una volta al minuto e scritto alla chiusura; i due interruttori salvati in `settings.json`, con le variabili come valore iniziale; limite ai tentativi di accesso.
 - **Attenzione**: i client dell'altro servizio (per il convertitore, la sua app Nextcloud *Converti in*) devono poter mandare una chiave quando l'obbligo è attivo.
 

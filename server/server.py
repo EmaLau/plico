@@ -1,4 +1,4 @@
-"""Universal-PDF: strumenti PDF self-hosted (unisci, dividi, riordina, ruota, elimina, comprimi,
+"""Plico: strumenti PDF self-hosted (unisci, dividi, riordina, ruota, elimina, comprimi,
 converti, proteggi/sblocca, numeri di pagina e filigrana).
 
 Ogni richiesta lavora in una cartella temporanea che viene cancellata appena il file e' stato inviato:
@@ -74,7 +74,7 @@ Se il server ha `API_REQUIRE_KEY=true`, le chiamate senza chiave vengono rifiuta
 Tutte le chiamate sono `POST` con `multipart/form-data` e rispondono con il file risultato,
 oppure con JSON `{"detail": "..."}` e un codice di errore HTTP.
 
-Esempio: `curl -H "apikey: updf_..." -F files=@a.pdf -F files=@b.pdf -o unito.pdf http://host:8080/api/merge`"""
+Esempio: `curl -H "apikey: plico_..." -F files=@a.pdf -F files=@b.pdf -o unito.pdf http://host:8080/api/merge`"""
 
 DATA = Path(os.environ.get("DATA_DIR", str(WORK / "data")))
 KEYS = apikeys.KeyStore(DATA)
@@ -93,14 +93,14 @@ async def lifespan(_):
     KEYS.flush()  # salva l'"ultimo uso" delle chiavi rimasto in memoria
 
 
-app = FastAPI(title="Universal-PDF", version="1.0", description=API_DOC, lifespan=lifespan,
+app = FastAPI(title="Plico", version="1.0", description=API_DOC, lifespan=lifespan,
               docs_url="/apidocs", redoc_url=None, openapi_url="/apidocs/openapi.json")
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 API = {"dependencies": [Security(apikeys.header_scheme)], "tags": ["Strumenti PDF"]}
 # percorso dell'API -> permesso richiesto alla chiave
 PATH_PERM = {f"/api/{p}": p for p in apikeys.PERMISSIONS} | {"/api/thumbs": "info", "/api/unlock": "protect",
                                                               "/api/fill": "forms", "/api/forms": "forms"}
-log = logging.getLogger("universal-pdf")
+log = logging.getLogger("plico")
 _slots: asyncio.Semaphore | None = None
 
 
@@ -239,11 +239,11 @@ async def index():
 
 def admin_only(request: Request, write: bool = False):
     if not KEYS.admin_enabled:
-        fail("Area admin disattivata: imposta UPDF_ADMIN_PASSWORD", 404)
+        fail("Area admin disattivata: imposta PLICO_ADMIN_PASSWORD", 404)
     if not KEYS.is_admin(request.cookies.get(apikeys.ADMIN_COOKIE)):
         fail("Accedi con la password admin", 401)
     # contro le richieste inviate da pagine di altri siti
-    if write and request.headers.get("x-requested-with") != "universal-pdf":
+    if write and request.headers.get("x-requested-with") != "plico":
         fail("Richiesta non valida", 403)
 
 
@@ -263,7 +263,7 @@ async def admin_state(request: Request):
 async def admin_login(request: Request, password: str = Body(..., embed=True)):
     if not KEYS.admin_password:
         fail("Nessuna password admin impostata", 404)
-    if request.headers.get("x-requested-with") != "universal-pdf":
+    if request.headers.get("x-requested-with") != "plico":
         fail("Richiesta non valida", 403)
     if not KEYS.login(apikeys.client_ip(request), password):
         await asyncio.sleep(1)

@@ -1,25 +1,25 @@
 # Avvio: docker compose up -d   ->   http://localhost:8080
 # Le impostazioni si cambiano in .env (vedi .env.example).
 services:
-  universal-pdf:
+  plico:
     build:
       context: ./server
       args:
-        UID: ${UPDF_UID:-1000}
-        GID: ${UPDF_GID:-1000}
-    image: universal-pdf:latest
-    container_name: universal-pdf
+        UID: ${PLICO_UID:-1000}
+        GID: ${PLICO_GID:-1000}
+    image: plico:latest
+    container_name: plico
     restart: unless-stopped
     ports:
-      - "${UPDF_BIND:-127.0.0.1}:${UPDF_PORT:-8080}:8080"
+      - "${PLICO_BIND:-127.0.0.1}:${PLICO_PORT:-8080}:8080"
     environment:
       TZ: ${TZ:-Europe/Rome}
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-0}
       MAX_OUTPUT_MB: ${MAX_OUTPUT_MB:-4096}
       MAX_PARALLEL: ${MAX_PARALLEL:-2}
       MAX_PAGE_MPX: ${MAX_PAGE_MPX:-50}
-      UPDF_ADMIN_PASSWORD: ${UPDF_ADMIN_PASSWORD:-}
-      UPDF_ADMIN_LOGIN: ${UPDF_ADMIN_LOGIN:-true}
+      PLICO_ADMIN_PASSWORD: ${PLICO_ADMIN_PASSWORD:-}
+      PLICO_ADMIN_LOGIN: ${PLICO_ADMIN_LOGIN:-true}
       API_REQUIRE_KEY: ${API_REQUIRE_KEY:-false}
       CONVERTER_URL: ${CONVERTER_URL:-}
       CONVERTER_API_KEY: ${CONVERTER_API_KEY:-}
@@ -27,15 +27,15 @@ services:
       NEXTCLOUD_USER: ${NEXTCLOUD_USER:-}
       NEXTCLOUD_PASSWORD: ${NEXTCLOUD_PASSWORD:-}
       NEXTCLOUD_PASSWORD_FILE: ${NEXTCLOUD_PASSWORD_FILE:-}
-      NEXTCLOUD_MAGIC_DIR: ${NEXTCLOUD_MAGIC_DIR:-Universal-PDF}
+      NEXTCLOUD_MAGIC_DIR: ${NEXTCLOUD_MAGIC_DIR:-Plico}
       NEXTCLOUD_POLL_SECONDS: ${NEXTCLOUD_POLL_SECONDS:-60}
     volumes:
-      - updf-work:/work
+      - plico-work:/work
     deploy:
       resources:
         limits:
-          cpus: "${UPDF_CPUS:-4}"
-          memory: ${UPDF_MEMORY:-3G}
+          cpus: "${PLICO_CPUS:-4}"
+          memory: ${PLICO_MEMORY:-3G}
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8080/healthz',timeout=5)"]
       interval: 60s
@@ -44,4 +44,4 @@ services:
       start_period: 20s
 
 volumes:
-  updf-work:
+  plico-work:

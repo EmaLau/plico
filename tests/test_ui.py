@@ -134,7 +134,7 @@ def test_admin_page_login(page, live_server):
     page.click("#allPerms")
     page.click("#createForm button[type=submit]")
     page.wait_for_selector("#created:not(.hidden)")
-    assert page.locator("#newKey").text_content().startswith("updf_")
+    assert page.locator("#newKey").text_content().startswith("plico_")
     assert page.locator("#keys .key", has_text="prova ui").count() == 1
 
 

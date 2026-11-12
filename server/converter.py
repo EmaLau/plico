@@ -29,7 +29,7 @@ def enabled() -> bool:
 
 
 def _request(method: str, path: str, body: bytes | None = None, headers: dict | None = None, timeout: int = 60):
-    h = {"User-Agent": "universal-pdf", **(headers or {})}
+    h = {"User-Agent": "plico", **(headers or {})}
     if API_KEY:
         h["apikey"] = API_KEY
     req = urllib.request.Request(URL + path, body, h, method=method)
