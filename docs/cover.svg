@@ -2,32 +2,46 @@
   <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a2a2e"/><stop offset=".7" stop-color="#161618"/></linearGradient></defs>
   <rect width="400" height="300" rx="20" fill="url(#bg)" stroke="none"/>
   <defs>
-    <radialGradient id="g" cx="60%" cy="48%" r="55%"><stop offset="0" stop-color="#a1a1aa" stop-opacity=".28"/><stop offset="1" stop-color="#a1a1aa" stop-opacity="0"/></radialGradient>
+    <radialGradient id="g" cx="62%" cy="45%" r="55%"><stop offset="0" stop-color="#a1a1aa" stop-opacity=".28"/><stop offset="1" stop-color="#a1a1aa" stop-opacity="0"/></radialGradient>
   </defs>
   <rect width="400" height="300" fill="url(#g)" stroke="none"/>
-  <!-- pagine in ingresso -->
+  <!-- strumenti: unisci, dividi, proteggi -->
   <g stroke="#ffffff" stroke-opacity=".45" stroke-width="1.6">
-    <path d="M40 60 h30 l12 12 v34 h-42 z"/><path d="M70 60 v12 h12"/>
-    <path d="M40 128 h30 l12 12 v34 h-42 z"/><path d="M70 128 v12 h12"/>
-    <path d="M40 196 h30 l12 12 v34 h-42 z"/><path d="M70 196 v12 h12"/>
+    <rect x="40" y="62" width="44" height="44" rx="10"/>
+    <rect x="40" y="128" width="44" height="44" rx="10"/>
+    <rect x="40" y="194" width="44" height="44" rx="10"/>
+  </g>
+  <g stroke="#ffffff" stroke-opacity=".55" stroke-width="1.5">
+    <!-- unisci: due frecce che convergono -->
+    <path d="M51 73 Q51 84 62 86 Q73 84 73 73"/><path d="M62 86 V95"/><path d="M58 91 L62 95 L66 91"/>
+    <!-- dividi: forbici -->
+    <circle cx="55" cy="158" r="4"/><circle cx="69" cy="158" r="4"/>
+    <path d="M57 155 L68 140"/><path d="M67 155 L56 140"/>
+    <!-- proteggi: lucchetto -->
+    <rect x="53" y="214" width="18" height="14" rx="3"/>
+    <path d="M57 214 V209 a5 5 0 0 1 10 0 V214"/>
   </g>
   <g stroke="#ffffff" stroke-opacity=".28" stroke-width="1.5" stroke-dasharray="4 6">
     <path d="M84 84 H120 Q134 84 134 98 V136 H170"/>
-    <path d="M84 152 H170"/>
-    <path d="M84 220 H120 Q134 220 134 206 V168 H170"/>
+    <path d="M84 150 H170"/>
+    <path d="M84 216 H120 Q134 216 134 202 V164 H170"/>
   </g>
-  <!-- documento risultato -->
-  <path d="M170 56 H316 L366 106 V244 H170 Z" fill="#1f1f23" fill-opacity=".6" stroke="#ffffff" stroke-opacity=".5" stroke-width="1.8"/>
-  <path d="M316 56 V106 H366" stroke="#ffffff" stroke-opacity=".5" stroke-width="1.8"/>
-  <g stroke="#ffffff" stroke-opacity=".3" stroke-width="1.4">
-    <path d="M194 86 H270"/><path d="M194 104 H290"/><path d="M194 122 H250"/>
-    <path d="M194 206 H342"/><path d="M194 222 H300"/>
+  <!-- documento PDF con le miniature delle pagine -->
+  <path d="M188 56 H318 L366 104 V226 Q366 244 348 244 H188 Q170 244 170 226 V74 Q170 56 188 56 Z" fill="#1f1f23" fill-opacity=".6" stroke="#ffffff" stroke-opacity=".5" stroke-width="1.8"/>
+  <path d="M318 56 V92 Q318 104 330 104 H366" stroke="#ffffff" stroke-opacity=".5" stroke-width="1.8"/>
+  <g stroke="#ffffff" stroke-opacity=".3" stroke-width="1.4"><path d="M190 76 H228"/><path d="M190 222 H250"/></g>
+  <g stroke="#ffffff" stroke-opacity=".4" stroke-width="1.4">
+    <rect x="192" y="118" width="34" height="44" rx="4"/>
+    <rect x="236" y="118" width="34" height="44" rx="4"/>
+    <rect x="324" y="118" width="34" height="44" rx="4" stroke-opacity=".25" stroke-dasharray="3 5"/>
   </g>
-  <text x="194" y="182" font-family="Helvetica, Arial, sans-serif" font-size="40" font-weight="700" fill="#e5322d" stroke="none" letter-spacing="2">PDF</text>
-  <circle cx="346" cy="226" r="3.5" fill="#e5322d" stroke="none"/>
-  <!-- forbici / unione -->
-  <g stroke="#e5322d" stroke-opacity=".85" stroke-width="1.6">
-    <circle cx="356" cy="34" r="6"/><circle cx="378" cy="34" r="6"/>
-    <path d="M360 29 L374 14"/><path d="M374 29 L360 14"/>
+  <rect x="280" y="112" width="34" height="44" rx="4" stroke="#ffcc00" stroke-width="2" transform="rotate(8 297 134)"/>
+  <g stroke="#ffffff" stroke-opacity=".3" stroke-width="1.2">
+    <path d="M198 128 H220 M198 136 H216 M242 128 H264 M242 136 H260"/>
   </g>
+  <path d="M287 124 H307 M287 132 H303" stroke="#ffcc00" stroke-opacity=".7" stroke-width="1.2" transform="rotate(8 297 134)"/>
+  <text x="190" y="200" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#ffcc00" stroke="none">PDF</text>
+  <circle cx="346" cy="222" r="3.5" fill="#ffcc00" stroke="none"/>
+  <!-- graffetta -->
+  <path d="M368 22 V50 a8 8 0 0 1 -16 0 V28 a5 5 0 0 1 10 0 V48" stroke="#ffcc00" stroke-opacity=".8" stroke-width="1.6"/>
 </svg>

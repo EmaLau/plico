@@ -143,13 +143,13 @@ footer{margin-top:44px;color:var(--muted);font-size:13px;text-align:center}
 <main>
   <header class="top">
     <a class="brand" href="#"><span class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg></span>Universal-PDF</a>
-    <span class="pill"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Sul <b>NAS di casa</b></span>
+    <span class="pill"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Tutto <b>in locale</b></span>
   </header>
 
   <!-- HOME -->
   <div id="home">
     <h1>Tutti gli strumenti PDF, in casa</h1>
-    <p class="lead">Unisci, dividi, comprimi, converti e proteggi i tuoi PDF. Tutto gira sul NAS: i file non vanno su internet e vengono cancellati appena hai scaricato il risultato.</p>
+    <p class="lead">Unisci, dividi, comprimi, converti e proteggi i tuoi PDF. Tutto gira sul tuo server: i file non vanno su internet e vengono cancellati appena hai scaricato il risultato.</p>
     <div class="drop-hero" id="heroDrop"><strong>Trascina qui un PDF (o in qualsiasi punto della pagina)</strong><span>oppure clicca per sceglierlo, poi scegli cosa farci</span></div>
     <section class="tag">Organizza</section>
     <div class="grid" id="g-org"></div>
@@ -181,7 +181,7 @@ footer{margin-top:44px;color:var(--muted);font-size:13px;text-align:center}
     </div>
   </div>
 
-  <footer>Universal-PDF · self-hosted sul NAS · nessun file conservato</footer>
+  <footer>Universal-PDF · self-hosted · nessun file conservato</footer>
 </main>
 
 <dialog id="pick"><div class="dlg"><h2>Cosa vuoi fare?</h2><p id="pickName"></p><div class="dgrid" id="pickGrid"></div>
@@ -521,12 +521,12 @@ $("#run").onclick = () => {
   $("#err").textContent = ""; $("#run").disabled = true;
   const bar = $("#bar"), txt = $("#barTxt");
   bar.classList.remove("hidden", "ind"); txt.classList.remove("hidden"); bar.firstElementChild.style.width = "0";
-  txt.textContent = "Invio al NAS…";
+  txt.textContent = "Invio al server…";
   const r = xhr = new XMLHttpRequest();
   xhr.open("POST", "api/" + ep); xhr.responseType = "blob";
-  xhr.upload.onprogress = e => { if (e.lengthComputable) { bar.firstElementChild.style.width = (e.loaded / e.total * 100) + "%"; txt.textContent = `Invio al NAS… ${fmt(e.loaded)} di ${fmt(e.total)}`; } };
+  xhr.upload.onprogress = e => { if (e.lengthComputable) { bar.firstElementChild.style.width = (e.loaded / e.total * 100) + "%"; txt.textContent = `Invio al server… ${fmt(e.loaded)} di ${fmt(e.total)}`; } };
   xhr.upload.onload = () => { bar.classList.add("ind"); txt.textContent = "Elaborazione in corso…"; };
-  xhr.onerror = () => fail("Connessione al NAS persa. Tailscale è acceso?");
+  xhr.onerror = () => fail("Connessione al server persa. Controlla la rete e riprova.");
   xhr.onload = async () => {
     xhr = null;
     if (r.status !== 200) {
