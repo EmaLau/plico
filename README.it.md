@@ -8,6 +8,15 @@
 
 **Strumenti PDF self-hosted in una sola pagina web.** Unisci, dividi, estrai, riordina, ruota, elimina pagine, comprimi, converti tra PDF e immagini, proteggi o sblocca con password, aggiungi numeri di pagina e filigrane. Tutto gira sul tuo server: ogni richiesta lavora in una cartella temporanea che viene cancellata appena il risultato è stato inviato, quindi **sul server non resta nessun file**.
 
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-home-dark.png">
+  <img src="docs/screenshot-home-light.png" alt="Pagina iniziale con tutti gli strumenti" width="800">
+</picture>
+</p>
+
+L'interfaccia è in italiano e in inglese: segue la lingua del browser e si cambia con il pulsante IT / EN. Anche i messaggi di errore dell'API seguono l'intestazione `Accept-Language`.
+
 ## Strumenti
 
 | Gruppo | Strumenti |

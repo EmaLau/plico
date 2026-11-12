@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Universal-PDF · Chiavi API</title>
+<script src="static/i18n.js"></script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23e5322d'/%3E%3Cpath d='M7 5h7l4 4v10H7z' fill='white'/%3E%3C/svg%3E">
 <style>
 :root{
@@ -60,6 +61,9 @@ code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13p
 .khead b{font-size:15px}
 .meta{color:var(--muted);font-size:13px}
 .switch{margin:2px 0 4px}
+.lang{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}
+.lang button{border:0;background:transparent;color:var(--muted);font:inherit;font-size:12px;font-weight:600;padding:4px 9px;border-radius:999px;cursor:pointer}
+.lang button.on{background:var(--surface-2);color:var(--text)}
 .hidden{display:none !important}
 </style>
 </head>
@@ -67,7 +71,7 @@ code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13p
 <main>
   <header class="top">
     <a class="brand" href="./"><span class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg></span>Universal-PDF</a>
-    <nav class="links"><a href="apidocs">Documentazione API</a><button id="logout" class="btn ghost small hidden">Esci</button></nav>
+    <nav class="links"><span class="lang" data-lang-switch></span><a href="apidocs">Documentazione API</a><button id="logout" class="btn ghost small hidden">Esci</button></nav>
   </header>
 
   <h1>Chiavi API</h1>
@@ -125,7 +129,7 @@ code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13p
 const $ = s => document.querySelector(s);
 let PERMS = {};
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const when = t => t ? new Date(t * 1000).toLocaleString("it-IT", {dateStyle: "medium", timeStyle: "short"}) : "mai";
+const when = t => t ? new Date(t * 1000).toLocaleString(UPDF_I18N.lang === "en" ? "en-GB" : "it-IT", {dateStyle: "medium", timeStyle: "short"}) : "mai";
 
 async function call(method, url, body) {
   const r = await fetch(url, {method, headers: {"Content-Type": "application/json", "X-Requested-With": "universal-pdf"},

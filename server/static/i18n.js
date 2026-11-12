@@ -1,0 +1,195 @@
+/* Universal-PDF: interfaccia in italiano o in inglese.
+   Le pagine sono scritte in italiano; se la lingua scelta e' l'inglese, ogni testo che compare nella
+   pagina (anche quelli creati dal JavaScript) viene tradotto con questo dizionario. La lingua parte da
+   quella del browser e si cambia con il selettore IT / EN (ricordato in localStorage).
+   Alle richieste al server si aggiunge Accept-Language, cosi' anche i messaggi di errore arrivano
+   nella lingua giusta. */
+"use strict";
+const UPDF_I18N = (() => {
+  const EN = {
+    // intestazione e home
+    "Tutto": "Runs", "in locale": "locally",
+    "Tutti gli strumenti PDF, in casa": "All the PDF tools, at home",
+    "Unisci, dividi, comprimi, converti e proteggi i tuoi PDF. Tutto gira sul tuo server: i file non vanno su internet e vengono cancellati appena hai scaricato il risultato.":
+      "Merge, split, compress, convert and protect your PDFs. Everything runs on your own server: files never go to the Internet and are deleted as soon as you download the result.",
+    "Trascina qui un PDF (o in qualsiasi punto della pagina)": "Drop a PDF here (or anywhere on the page)",
+    "oppure clicca per sceglierlo, poi scegli cosa farci": "or click to choose it, then pick what to do",
+    "Organizza": "Organize", "Ottimizza e converti": "Optimize and convert", "Sicurezza e modifica": "Security and editing",
+    "Tutti gli strumenti": "All tools",
+    "Universal-PDF · self-hosted · nessun file conservato ·": "Universal-PDF · self-hosted · no files kept ·",
+    "Cosa vuoi fare?": "What do you want to do?", "Annulla": "Cancel", "Rilascia il file": "Drop the file",
+    // strumenti
+    "Unisci PDF": "Merge PDF", "Metti insieme più PDF (anche immagini) nell'ordine che vuoi.": "Combine several PDFs (images too) in the order you want.",
+    "Dividi PDF": "Split PDF", "Separa il documento per intervalli o ogni N pagine.": "Split the document by ranges or every N pages.",
+    "Estrai pagine": "Extract pages", "Tieni solo le pagine che ti servono, in un unico PDF.": "Keep only the pages you need, in a single PDF.",
+    "Riordina pagine": "Reorder pages", "Trascina le anteprime per cambiare l'ordine.": "Drag the thumbnails to change the order.",
+    "Ruota PDF": "Rotate PDF", "Ruota tutte le pagine o solo alcune.": "Rotate all pages or just some.",
+    "Elimina pagine": "Delete pages", "Clicca le pagine da togliere.": "Click the pages to remove.",
+    "Comprimi PDF": "Compress PDF", "Riduci il peso del file scegliendo la qualità.": "Make the file smaller by choosing the quality.",
+    "Immagini in PDF": "Images to PDF", "JPG, PNG, WebP… in un PDF, una pagina per immagine.": "JPG, PNG, WebP… into a PDF, one page per image.",
+    "PDF in immagini": "PDF to images", "Esporta le pagine come PNG o JPG.": "Export the pages as PNG or JPG.",
+    "Proteggi / Sblocca": "Protect / Unlock", "Aggiungi una password (AES-256) o toglila.": "Add a password (AES-256) or remove it.",
+    "Numeri pagina e filigrana": "Page numbers and watermark", "Numera le pagine e/o aggiungi un testo in filigrana.": "Number the pages and/or add a text watermark.",
+    // caricamento file
+    "Scegli il file": "Choose the file", "Scegli i file": "Choose the files", "Scegli il PDF": "Choose the PDF",
+    "o trascinalo qui": "or drop it here", "o trascinali qui (puoi aggiungerne altri dopo)": "or drop them here (you can add more later)",
+    "Alcuni file non sono del tipo giusto e sono stati ignorati.": "Some files are not the right type and were ignored.",
+    "Trascina per spostare": "Drag to move", "Su": "Up", "Giù": "Down", "Togli": "Remove", "Avvia": "Start",
+    // anteprime
+    "Preparo le anteprime…": "Preparing thumbnails…", "Errore": "Error",
+    "Il documento ha": "The document has", "pagine.": "pages.",
+    "Trascina le pagine (o usa le frecce) per cambiare l'ordine.": "Drag the pages (or use the arrows) to change the order.",
+    "Usa le frecce su ogni pagina, o ruota tutto insieme.": "Use the arrows on each page, or rotate everything at once.",
+    "Clicca le pagine da eliminare (diventano barrate).": "Click the pages to delete (they get crossed out).",
+    "Clicca le pagine da tenere: le altre non saranno nel file.": "Click the pages to keep: the others won't be in the file.",
+    "Inverti ordine": "Reverse order", "Ordine originale": "Original order", "Tutte a sinistra": "All left",
+    "Tutte a destra": "All right", "Annulla rotazioni": "Undo rotations", "Elimina dispari": "Delete odd",
+    "Elimina pari": "Delete even", "Nessuna": "None", "Tutte": "All", "Prima": "Earlier", "Dopo": "Later",
+    "Ruota a sinistra": "Rotate left", "Ruota a destra": "Rotate right",
+    // opzioni
+    "Per intervalli": "By ranges", "es. 1-3, 5, 8-": "e.g. 1-3, 5, 8-", "Ogni N pagine": "Every N pages",
+    "parti uguali": "equal parts", "Una pagina per file": "One page per file", "tutte separate": "all separate",
+    "Intervalli (ogni intervallo diventa un PDF)": "Ranges (each range becomes a PDF)", "Pagine per file": "Pages per file",
+    "Se escono più file li scarichi tutti insieme in uno ZIP.": "If there are several files you download them together in a ZIP.",
+    "L'ordine dei file nella lista è l'ordine nel PDF finale. Le immagini diventano una pagina ciascuna.":
+      "The order of the list is the order in the final PDF. Each image becomes one page.",
+    "Leggera": "Light", "qualità alta · 220 dpi": "high quality · 220 dpi", "Consigliata": "Recommended",
+    "buon equilibrio · 150 dpi": "good balance · 150 dpi", "Forte": "Strong", "file minimo · 72 dpi": "smallest file · 72 dpi",
+    "Converti anche in bianco e nero (scala di grigi)": "Also convert to black and white (grayscale)",
+    "Dimensione pagina": "Page size", "Come l'immagine": "Same as the image", "Lettera (US)": "Letter (US)",
+    "Margine": "Margin", "Nessuno": "None", "Piccolo": "Small", "Grande": "Large",
+    "Puoi aggiungere anche PDF: vengono inseriti così come sono.": "You can add PDFs too: they are inserted as they are.",
+    "migliore qualità": "best quality", "file più leggeri": "smaller files", "Risoluzione": "Resolution",
+    "72 dpi · schermo": "72 dpi · screen", "150 dpi · normale": "150 dpi · normal", "300 dpi · stampa": "300 dpi · print",
+    "600 dpi · massima": "600 dpi · maximum", "Solo queste pagine (vuoto = tutte)": "Only these pages (empty = all)",
+    "es. 1, 3-5": "e.g. 1, 3-5", "Proteggi": "Protect", "aggiungi password": "add a password", "Sblocca": "Unlock",
+    "togli password": "remove the password", "Password per aprire": "Password to open", "Ripeti password": "Repeat password",
+    "Cosa può fare chi apre il file": "What people who open the file can do", "Stampare": "Print",
+    "Copiare il testo": "Copy the text", "Modificare": "Edit",
+    "Cifratura AES-256. Se dimentichi la password il file non si apre più: non c'è modo di recuperarla.":
+      "AES-256 encryption. If you forget the password the file can't be opened any more: there is no way to recover it.",
+    "Password attuale del PDF": "Current PDF password", "Il file sbloccato si apre senza password.": "The unlocked file opens without a password.",
+    "Numeri di pagina": "Page numbers", "Posizione": "Position", "In basso al centro": "Bottom center",
+    "In basso a destra": "Bottom right", "In basso a sinistra": "Bottom left", "In alto al centro": "Top center",
+    "In alto a destra": "Top right", "In alto a sinistra": "Top left", "Formato": "Format", "Inizia da": "Start at",
+    "Dimensione": "Size", "Non numerare la prima pagina (copertina)": "Don't number the first page (cover)",
+    "Filigrana (lascia vuoto per non metterla)": "Watermark (leave empty for none)", "Testo": "Text",
+    "es. BOZZA, RISERVATO, COPIA": "e.g. DRAFT, CONFIDENTIAL, COPY", "Trasparenza": "Opacity", "Inclinazione": "Angle",
+    "Diagonale": "Diagonal", "Orizzontale": "Horizontal", "Verticale": "Vertical", "Colore": "Color",
+    // pulsante e invio
+    "Salva nuovo ordine": "Save new order", "Applica rotazione": "Apply rotation", "Crea PDF": "Create PDF",
+    "Converti in immagini": "Convert to images", "Sblocca PDF": "Unlock PDF", "Proteggi PDF": "Protect PDF", "Applica": "Apply",
+    "Le due password non coincidono.": "The two passwords don't match.", "Invio al server…": "Uploading…",
+    "Elaborazione in corso…": "Processing…", "Connessione al server persa. Controlla la rete e riprova.": "Connection to the server lost. Check the network and try again.",
+    "Il file è pronto": "Your file is ready", "Scarica": "Download", "Ricomincia": "Start over",
+    "Continua con lo stesso file:": "Continue with the same file:", "Scarica ZIP": "Download ZIP",
+    "Scarica immagine": "Download image", "Scarica PDF": "Download PDF",
+    "Il file era già ottimizzato: non si riesce a ridurlo ulteriormente.": "The file was already optimized: it can't be made any smaller.",
+    // pagina admin
+    "Documentazione API": "API documentation", "Esci": "Log out", "Chiavi API": "API keys",
+    "Le chiavi servono agli script (curl, Comandi rapidi di iPhone, altri servizi) per usare l'API. Ognuna ha i suoi permessi e si può revocare in ogni momento. La pagina web non ne ha bisogno.":
+      "Keys let scripts (curl, iPhone Shortcuts, other services) use the API. Each has its own permissions and can be revoked at any time. The web page doesn't need one.",
+    "Area admin disattivata": "Admin area disabled", "Accedi": "Log in", "Password admin": "Admin password",
+    "Nuova chiave": "New key", "Nome (per ricordarti chi la usa)": "Name (to remember who uses it)",
+    "es. Comandi rapidi iPhone": "e.g. iPhone Shortcuts", "Crea chiave": "Create key", "Tutti i permessi": "All permissions",
+    "Accesso all'area admin": "Access to the admin area", "Password per entrare in questa pagina": "Password to open this page",
+    "Chiave creata: copiala adesso": "Key created: copy it now",
+    "Non verrà più mostrata: sul server resta solo una sua impronta. Se la perdi, revocala e creane un'altra.":
+      "It won't be shown again: the server keeps only a fingerprint of it. If you lose it, revoke it and create another one.",
+    "Copia": "Copy", "Copiata": "Copied", "Esempio:": "Example:", "Chiavi attive": "Active keys",
+    "Chiave obbligatoria per le API": "Key required for the API", "Revoca": "Revoke", "Conferma revoca": "Confirm revoke",
+    "Nessuna chiave per ora.": "No keys yet.", "Scegli almeno un permesso": "Choose at least one permission",
+    "Informazioni e anteprime": "Info and thumbnails", "Unisci": "Merge", "Dividi ed estrai": "Split and extract",
+    "Riordina, ruota ed elimina pagine": "Reorder, rotate and delete pages", "Ruota tutte le pagine": "Rotate all pages",
+    "Comprimi": "Compress", "Proteggi e sblocca": "Protect and unlock", "Numeri di pagina e filigrana": "Page numbers and watermark",
+    "Attiva: per entrare serve la password admin.": "On: the admin password is needed to get in.",
+    "Attivo: ogni chiamata fatta fuori dalla pagina web deve avere una chiave. La pagina web continua a funzionare.":
+      "On: every call made outside the web page needs a key. The web page keeps working.",
+    "Disattivo: le chiamate senza chiave sono accettate. Le chiavi limitano comunque cosa può fare ogni script.":
+      "Off: calls without a key are accepted. Keys still limit what each script can do.",
+    "Disattiva:": "Off:",
+    "chiunque raggiunga il servizio può creare, modificare e revocare le chiavi. Con la password spenta anche l'obbligo della chiave protegge poco, perché chiunque può crearsene una.":
+      "anyone who can reach the service can create, change and revoke keys. With the password off, requiring a key protects little, because anyone can create one.",
+    "Disattiva, e non c'è nessuna password impostata: per riattivarla imposta UPDF_ADMIN_PASSWORD o il file admin-password e riavvia.":
+      "Off, and no password is set: to turn it back on set UPDF_ADMIN_PASSWORD or the admin-password file and restart.",
+    "Per attivarla imposta la variabile": "To enable it set the variable", ", oppure scrivi la password nel file": ", or write the password in the file",
+    "della cartella dei dati (": "in the data folder (", ", predefinita": ", default", "), poi riavvia il servizio.": "), then restart the service.",
+  };
+  const RX = [
+    [/^(\d+) file selezionati$/, "$1 files selected"],
+    [/^Pagina (\d+)$/, "Page $1"], [/^Pagina (\d+) · (\d+)°$/, "Page $1 · $2°"], [/^Pagina (\d+) di (\d+)$/, "Page $1 of $2"],
+    [/^(\d+) da eliminare, (\d+) restano$/, "$1 to delete, $2 left"], [/^(\d+) pagine scelte$/, "$1 pages selected"],
+    [/^(\d+) pagine$/, "$1 pages"], [/^Invio al server… (.+) di (.+)$/, "Uploading… $1 of $2"], [/^Errore (\d+)$/, "Error $1"],
+    [/^Da (.+) a (.+): (\d+)% più leggero\.$/, "From $1 to $2: $3% smaller."],
+    [/^(.*) Una pagina era molto grande ed è stata resa a una risoluzione più bassa\.$/, "$1 One page was very large and was rendered at a lower resolution."],
+    [/^(.*) (\d+) pagine erano molto grandi e sono state rese a una risoluzione più bassa\.$/, "$1 $2 pages were very large and were rendered at a lower resolution."],
+    [/^Creata (.+) · ultimo uso: mai$/, "Created $1 · last used: never"], [/^Creata (.+) · ultimo uso: (.+)$/, "Created $1 · last used: $2"],
+    [/^(.+) · Universal-PDF$/, m => tr(m[1]) + " · Universal-PDF"],
+    [/^Universal-PDF · Chiavi API$/, "Universal-PDF · API keys"],
+  ];
+
+  let saved = null;
+  try { saved = localStorage.getItem("updf-lang"); } catch {}
+  const lang = saved === "it" || saved === "en" ? saved : ((navigator.language || "en").toLowerCase().startsWith("it") ? "it" : "en");
+
+  function tr(s) {
+    if (lang === "it" || !s) return s;
+    const t = s.trim();
+    if (!t) return s;
+    let out = EN[t];
+    if (out === undefined) {
+      for (const [rx, rep] of RX) {
+        const m = t.match(rx);
+        if (m) { out = typeof rep === "function" ? rep(m) : t.replace(rx, rep); break; }
+      }
+    }
+    if (out === undefined) return s;
+    return s.slice(0, s.indexOf(t[0])) + out + s.slice(s.lastIndexOf(t[t.length - 1]) + 1);
+  }
+
+  const ATTRS = ["placeholder", "title", "aria-label"];
+  function translate(node) {
+    if (node.nodeType === 3) {
+      const v = tr(node.data);
+      if (v !== node.data) node.data = v;
+      return;
+    }
+    if (node.nodeType !== 1 || node.tagName === "SCRIPT" || node.tagName === "STYLE") return;
+    for (const a of ATTRS) if (node.hasAttribute(a)) { const v = tr(node.getAttribute(a)); if (v !== node.getAttribute(a)) node.setAttribute(a, v); }
+    for (const c of node.childNodes) translate(c);
+  }
+
+  if (lang === "en") {
+    document.documentElement.lang = "en";
+    new MutationObserver(list => {
+      for (const m of list) {
+        if (m.type === "characterData") translate(m.target);
+        else if (m.type === "attributes") translate(m.target);
+        else m.addedNodes.forEach(translate);
+      }
+    }).observe(document.documentElement, {childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ATTRS});
+    document.addEventListener("DOMContentLoaded", () => translate(document.documentElement));
+  }
+
+  // la lingua anche nelle richieste al server, per i messaggi di errore
+  const _fetch = window.fetch.bind(window);
+  window.fetch = (url, opt = {}) => {
+    const headers = new Headers(opt.headers || {});
+    if (!headers.has("Accept-Language")) headers.set("Accept-Language", lang);
+    return _fetch(url, {...opt, headers});
+  };
+  const _send = XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.send = function (body) { try { this.setRequestHeader("Accept-Language", lang); } catch {} return _send.call(this, body); };
+
+  function set(l) { try { localStorage.setItem("updf-lang", l); } catch {} location.reload(); }
+
+  // selettore IT / EN, in qualsiasi elemento con data-lang-switch
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll("[data-lang-switch]").forEach(el => {
+      el.innerHTML = ["it", "en"].map(l => `<button type="button" data-l="${l}" class="${l === lang ? "on" : ""}" aria-pressed="${l === lang}">${l.toUpperCase()}</button>`).join("");
+      el.onclick = e => { const b = e.target.closest("button"); if (b && b.dataset.l !== lang) set(b.dataset.l); };
+    });
+  });
+
+  return {lang, tr, set};
+})();

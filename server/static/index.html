@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Universal-PDF</title>
+<script src="static/i18n.js"></script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23e5322d'/%3E%3Cpath d='M7 5h7l4 4v10H7z' fill='white'/%3E%3Cpath d='M14 5v4h4' fill='%23f6b0ad'/%3E%3C/svg%3E">
 <style>
 :root{
@@ -134,6 +135,10 @@ dialog::backdrop{background:rgba(10,14,20,.55)}
 .overlay{position:fixed;inset:0;background:color-mix(in srgb,var(--accent) 14%,rgba(10,14,20,.45));display:none;place-items:center;z-index:50;pointer-events:none}
 .overlay.show{display:grid}
 .overlay div{background:var(--surface);border-radius:16px;padding:22px 30px;font-weight:700;font-size:18px;box-shadow:var(--shadow)}
+.lang{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}
+.lang button{border:0;background:transparent;color:var(--muted);font:inherit;font-size:12px;font-weight:600;padding:4px 9px;border-radius:999px;cursor:pointer}
+.lang button.on{background:var(--surface-2);color:var(--text)}
+.topr{display:flex;gap:10px;align-items:center}
 footer{margin-top:44px;color:var(--muted);font-size:13px;text-align:center}
 .hidden{display:none!important}
 @media (max-width:640px){ main{padding-top:22px} .grid{grid-template-columns:1fr 1fr} .tool p{display:none} .pages{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))} }
@@ -143,7 +148,7 @@ footer{margin-top:44px;color:var(--muted);font-size:13px;text-align:center}
 <main>
   <header class="top">
     <a class="brand" href="#"><span class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg></span>Universal-PDF</a>
-    <span class="pill"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Tutto <b>in locale</b></span>
+    <div class="topr"><span class="lang" data-lang-switch></span><span class="pill"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Tutto <b>in locale</b></span></div>
   </header>
 
   <!-- HOME -->
@@ -223,6 +228,7 @@ const TOOLS = [
 ];
 const T = Object.fromEntries(TOOLS.map(t => [t.id, t]));
 const $ = s => document.querySelector(s);
+const L = s => UPDF_I18N.lang === "en" ? ({Pagina: "Page", di: "of"}[s] || s) : s;  // testi che finiscono nel PDF
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt = b => b < 1024 ? b + " B" : b < 1048576 ? (b/1024).toFixed(0) + " KB" : (b/1048576).toFixed(b < 10485760 ? 1 : 0) + " MB";
 
@@ -457,7 +463,7 @@ function renderOpts(keep) {
   }
   if (id === "timbra") h = `<fieldset><legend><label class="check"><input type="checkbox" id="num" checked> Numeri di pagina</label></legend>
         <div class="row"><label class="f">Posizione<select id="npos"><option value="bottom-center">In basso al centro</option><option value="bottom-right">In basso a destra</option><option value="bottom-left">In basso a sinistra</option><option value="top-center">In alto al centro</option><option value="top-right">In alto a destra</option><option value="top-left">In alto a sinistra</option></select></label>
-        <label class="f">Formato<select id="nfmt"><option value="{n}">1</option><option value="{n} / {tot}">1 / 10</option><option value="Pagina {n}">Pagina 1</option><option value="Pagina {n} di {tot}">Pagina 1 di 10</option><option value="- {n} -">- 1 -</option></select></label></div>
+        <label class="f">Formato<select id="nfmt"><option value="{n}">1</option><option value="{n} / {tot}">1 / 10</option><option value="${L("Pagina")} {n}">Pagina 1</option><option value="${L("Pagina")} {n} ${L("di")} {tot}">Pagina 1 di 10</option><option value="- {n} -">- 1 -</option></select></label></div>
         <div class="row"><label class="f">Inizia da<input type="number" id="nstart" value="1" min="0"></label><label class="f">Dimensione<input type="number" id="nsize" value="11" min="6" max="48"></label></div>
         <label class="check"><input type="checkbox" id="nskip"> Non numerare la prima pagina (copertina)</label></fieldset>
       <fieldset><legend>Filigrana (lascia vuoto per non metterla)</legend>
@@ -482,8 +488,8 @@ function updateRun() {
   if (tool.id === "timbra") ok = ok && (chk("num") || val("wm").trim());
   b.disabled = !ok;
   const e = $("#err");
-  if (tool.id === "proteggi" && val("pw2") && val("pw") !== val("pw2")) e.textContent = "Le due password non coincidono.";
-  else if (e.textContent === "Le due password non coincidono.") e.textContent = "";
+  if (tool.id === "proteggi" && val("pw2") && val("pw") !== val("pw2")) { e.textContent = "Le due password non coincidono."; e.dataset.pw = "1"; }
+  else if (e.dataset.pw) { e.textContent = ""; delete e.dataset.pw; }
 }
 
 /* ---------------------------------------------------------------- invio */

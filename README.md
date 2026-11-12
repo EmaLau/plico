@@ -13,6 +13,20 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 ![PyMuPDF](https://img.shields.io/badge/PyMuPDF-1.26-e5322d)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue)
+[![CI](https://github.com/EmaLau/universal-pdf/actions/workflows/ci.yml/badge.svg)](https://github.com/EmaLau/universal-pdf/actions/workflows/ci.yml)
+
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-home-dark.png">
+  <img src="docs/screenshot-home-light.png" alt="Home page with all the tools" width="800">
+</picture>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-tool-dark.png">
+  <img src="docs/screenshot-tool-light.png" alt="Reorder pages: thumbnails that can be dragged" width="800">
+</picture>
+</p>
+
+The interface is in English and Italian: it follows the browser language and can be switched with the IT / EN button. Error messages from the API follow the `Accept-Language` header.
 
 ## Tools
 
@@ -118,6 +132,8 @@ curl -F file=@scan.pdf -F level=high -o smaller.pdf http://localhost:8080/api/co
 - **PyMuPDF** for pages, thumbnails, images and stamps; **pikepdf** for encryption; **Ghostscript** for compression.
 - Each request creates a folder under `/work/upd`, and a background task removes it once the response has been sent. Leftovers from an interrupted run are removed when the service starts.
 - API keys and the `/admin` page are in `server/apikeys.py` and `server/static/admin.html`.
+- Security headers on every response: a Content-Security-Policy that allows only the page's own scripts (by hash), `frame-ancestors 'none'`, `nosniff`, no referrer. Requests that change something and come from another site's page (`Origin` / `Sec-Fetch-Site`) are rejected with 403.
+- The interface texts are in `server/static/i18n.js`, the API error messages in `server/i18n.py`.
 - The container runs as an unprivileged user, behind `tini`.
 
 ## Project layout
@@ -157,7 +173,7 @@ The same tests run in GitHub Actions, together with a Docker build and the selft
 - [x] Uploads are spooled to the data volume, not to the container filesystem; limit on output size
 - [x] Limit on parallel heavy jobs
 - [x] pytest tests, browser test of the page, CI
-- [ ] English or bilingual interface, security headers
+- [x] English or bilingual interface, security headers
 - [ ] Review the name and make sure nothing is copied from the site that inspired it
 
 ## License

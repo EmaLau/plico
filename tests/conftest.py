@@ -47,7 +47,7 @@ def pages(data: bytes) -> int:
 
 @pytest.fixture
 def client():
-    with TestClient(server.app) as c:
+    with TestClient(server.app, headers={"Accept-Language": "it-IT,it;q=0.9"}) as c:
         yield c
 
 

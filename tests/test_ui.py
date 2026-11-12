@@ -32,7 +32,7 @@ def browser():
 
 @pytest.fixture
 def page(browser, live_server):
-    ctx = browser.new_context()
+    ctx = browser.new_context(locale="it-IT")
     pg = ctx.new_page()
     errors = []
     pg.on("pageerror", lambda e: errors.append(str(e)))
@@ -84,6 +84,42 @@ def test_tool(page, files, tool, names, prepare, expect):
 
 def test_home_lists_all_tools(page):
     assert page.locator("a.tool").count() == 11
+
+
+@pytest.mark.parametrize("locale,title,button", [("en-US", "All the PDF tools, at home", "Merge PDF"),
+                                                 ("it-IT", "Tutti gli strumenti PDF, in casa", "Unisci PDF")])
+def test_language_from_browser(browser, live_server, locale, title, button):
+    ctx = browser.new_context(locale=locale)
+    pg = ctx.new_page()
+    errors = []
+    pg.on("console", lambda m: m.type == "error" and errors.append(m.text))
+    pg.goto(live_server + "/")
+    assert pg.locator("h1").first.text_content() == title
+    pg.goto(live_server + "/#unisci")
+    pg.wait_for_selector("#tTitle")
+    assert pg.locator("#run").text_content() == button
+    ctx.close()
+    assert not errors
+
+
+def test_language_switch_and_english_tool(browser, live_server, files):
+    ctx = browser.new_context(locale="it-IT")
+    pg = ctx.new_page()
+    errors = []
+    pg.on("console", lambda m: m.type == "error" and errors.append(m.text))
+    pg.goto(live_server + "/")
+    pg.click("[data-lang-switch] [data-l=en]")
+    pg.wait_for_selector("text=All the PDF tools, at home")
+    # un errore del server arriva in inglese
+    pg.goto(live_server + "/#dividi")
+    with pg.expect_file_chooser() as fc:
+        pg.click("#dz")
+    fc.value.set_files(str(files / "a.pdf"))
+    pg.fill("#ranges", "99")
+    pg.click("#run")
+    pg.wait_for_selector("#err:has-text('outside the document')")
+    ctx.close()
+    assert not [e for e in errors if "status of 400" not in e]  # il 400 e' quello voluto
 
 
 def test_admin_page_login(page, live_server):

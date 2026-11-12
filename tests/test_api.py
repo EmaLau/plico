@@ -280,3 +280,57 @@ def test_apidocs(client):
     spec = client.get("/apidocs/openapi.json").json()
     assert "apikey" in str(spec["components"]["securitySchemes"]) and "/api/merge" in spec["paths"]
     assert not any(p.startswith("/admin") for p in spec["paths"])
+
+
+# ---------------------------------------------------------------- lingue e sicurezza
+
+@pytest.mark.parametrize("accept,expected", [(None, "outside the document"), ("en-US,en;q=0.9", "outside the document"),
+                                             ("it-IT,it;q=0.9,en;q=0.8", "fuori dal documento")])
+def test_error_language(accept, expected):
+    from fastapi.testclient import TestClient
+    headers = {"Accept-Language": accept} if accept else {}
+    with TestClient(server.app) as c:
+        r = c.post("/api/split", data={"mode": "ranges", "ranges": "9"}, files=[up("a.pdf", PDF)], headers=headers)
+    assert expected in r.json()["detail"]
+
+
+def test_every_italian_message_has_a_translation():
+    """Ogni messaggio passato a fail() o HTTPException ha la sua traduzione inglese."""
+    import re
+    import i18n
+    src = (server.STATIC.parent / "server.py").read_text() + (server.STATIC.parent / "apikeys.py").read_text()
+    msgs = re.findall(r'(?:fail\(|HTTPException\(\d+, )f?"([^"]+)"', src)
+    assert len(msgs) > 25
+    for m in msgs:
+        sample = re.sub(r"\{[^}]*\}", "1", m)
+        assert i18n.t(sample, "en") != sample, f"manca la traduzione di: {m}"
+
+
+def test_security_headers(client):
+    h = client.get("/").headers
+    assert "frame-ancestors 'none'" in h["content-security-policy"] and "'unsafe-inline'" not in h["content-security-policy"].split("style-src")[0]
+    assert h["x-content-type-options"] == "nosniff" and h["x-frame-options"] == "DENY"
+    assert "cdn.jsdelivr.net" in client.get("/apidocs").headers["content-security-policy"]
+    assert client.post("/api/info", files=[up("x.pdf", b"x")]).headers["x-content-type-options"] == "nosniff"
+
+
+@pytest.mark.parametrize("headers,status", [({"Origin": "http://evil.example"}, 403),
+                                            ({"Sec-Fetch-Site": "cross-site"}, 403),
+                                            ({"Origin": "null"}, 403),
+                                            ({"Origin": "http://testserver"}, 200),
+                                            ({"Sec-Fetch-Site": "same-origin"}, 200),
+                                            ({}, 200)])
+def test_cross_site_requests(client, headers, status):
+    r = client.post("/api/info", files=[up("a.pdf", PDF)], headers=headers)
+    assert r.status_code == status
+
+
+def test_cross_site_admin_login_rejected(client):
+    r = client.post("/admin/api/login", json={"password": "x"},
+                    headers={"X-Requested-With": "universal-pdf", "Origin": "http://evil.example"})
+    assert r.status_code == 403
+
+
+def test_i18n_script_served(client):
+    r = client.get("/static/i18n.js")
+    assert r.status_code == 200 and "UPDF_I18N" in r.text

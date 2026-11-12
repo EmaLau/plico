@@ -28,6 +28,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import contextlib
+import hashlib
 import io
 import json
 import logging
@@ -40,15 +41,18 @@ import subprocess
 import tempfile
 import zipfile
 from pathlib import Path
+from urllib.parse import urlparse
 
 import fitz  # PyMuPDF
 import pikepdf
 from fastapi import Body, FastAPI, File, Form, HTTPException, Request, Security, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
 
 import apikeys
+import i18n
 
 STATIC = Path(__file__).parent / "static"
 WORK = Path(os.environ.get("WORK_DIR", "/tmp"))
@@ -91,6 +95,7 @@ async def lifespan(_):
 
 app = FastAPI(title="Universal-PDF", version="1.0", description=API_DOC, lifespan=lifespan,
               docs_url="/apidocs", redoc_url=None, openapi_url="/apidocs/openapi.json")
+app.mount("/static", StaticFiles(directory=STATIC), name="static")
 API = {"dependencies": [Security(apikeys.header_scheme)], "tags": ["Strumenti PDF"]}
 # percorso dell'API -> permesso richiesto alla chiave
 PATH_PERM = {f"/api/{p}": p for p in apikeys.PERMISSIONS} | {"/api/thumbs": "info", "/api/unlock": "protect"}
@@ -130,31 +135,80 @@ def fail(msg: str, status: int = 400):
     raise HTTPException(status, msg)
 
 
+def error(request: Request, msg, status: int) -> JSONResponse:
+    lang = i18n.pick(request.headers.get("accept-language"))
+    return JSONResponse({"detail": i18n.t(msg, lang)}, status_code=status, headers={"Content-Language": lang})
+
+
 @app.exception_handler(HTTPException)
-async def http_error(_, exc: HTTPException):
-    return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+async def http_error(request, exc: HTTPException):
+    return error(request, exc.detail, exc.status_code)
 
 
 @app.exception_handler(Exception)
 async def any_error(request, exc: Exception):
     log.error("Errore su %s", request.url.path, exc_info=exc)
-    return JSONResponse({"detail": "Errore durante l'elaborazione del file"}, status_code=500)
+    return security_headers(request, error(request, "Errore durante l'elaborazione del file", 500))
+
+
+def _inline_hashes(*pages: str) -> str:
+    """Hash degli script scritti dentro le pagine, per permetterli nella Content-Security-Policy."""
+    out = []
+    for page in pages:
+        for body in re.findall(r"<script>(.*?)</script>", (STATIC / page).read_text("utf-8"), re.S):
+            out.append("'sha256-" + base64.b64encode(hashlib.sha256(body.encode()).digest()).decode() + "'")
+    return " ".join(out)
+
+
+CSP_PAGE = ("default-src 'self'; script-src 'self' " + _inline_hashes("index.html", "admin.html") +
+            "; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; "
+            "base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
+# la documentazione Swagger carica i suoi file da jsDelivr e ha uno script nella pagina
+CSP_DOCS = ("default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: https://fastapi.tiangolo.com; "
+            "connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
+
+
+def security_headers(request: Request, resp):
+    h = resp.headers
+    h["Content-Security-Policy"] = CSP_DOCS if request.url.path == "/apidocs" else CSP_PAGE
+    h["X-Content-Type-Options"] = "nosniff"
+    h["X-Frame-Options"] = "DENY"
+    h["Referrer-Policy"] = "no-referrer"
+    h["Cross-Origin-Opener-Policy"] = "same-origin"
+    h["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    return resp
+
+
+def cross_site(request: Request) -> bool:
+    """Vero per le richieste che modificano qualcosa inviate dal browser da una pagina di un altro sito."""
+    if request.method in ("GET", "HEAD", "OPTIONS"):
+        return False
+    if request.headers.get("sec-fetch-site") == "cross-site":
+        return True
+    origin = request.headers.get("origin")
+    if not origin or origin == "null":
+        return origin == "null"
+    hosts = {request.headers.get("host"), request.headers.get("x-forwarded-host")}
+    return urlparse(origin).netloc not in hosts
 
 
 @app.middleware("http")
-async def api_keys(request: Request, call_next):
-    """Controlla chiave e permessi prima di ricevere il file."""
-    perm = PATH_PERM.get(request.url.path)
-    if perm and request.method == "POST":
-        key = request.headers.get("apikey")
-        try:
+async def guard(request: Request, call_next):
+    """Richieste da altri siti, chiave e permessi (prima di ricevere il file), intestazioni di sicurezza."""
+    try:
+        if cross_site(request):
+            fail("Richiesta inviata da un altro sito", 403)
+        perm = PATH_PERM.get(request.url.path)
+        if perm and request.method == "POST":
+            key = request.headers.get("apikey")
             if key:
                 KEYS.check_key(key, perm)
             elif KEYS.require_key and not KEYS.verify("session", request.cookies.get(apikeys.SESSION_COOKIE)):
                 fail("Serve una chiave API nell'intestazione 'apikey'", 401)
-        except HTTPException as e:
-            return JSONResponse({"detail": e.detail}, status_code=e.status_code)
-    return await call_next(request)
+    except HTTPException as e:
+        return security_headers(request, error(request, e.detail, e.status_code))
+    return security_headers(request, await call_next(request))
 
 
 async def save(job: Job, up: UploadFile, idx: int = 0) -> Path:

@@ -11,7 +11,7 @@ ARG GID=1000
 RUN groupadd -g "$GID" upd 2>/dev/null || true \
     && useradd -u "$UID" -g "$GID" -M -d /work -s /usr/sbin/nologin upd 2>/dev/null || true \
     && mkdir -p /work && chown "$UID:$GID" /work
-COPY server.py apikeys.py /app/
+COPY server.py apikeys.py i18n.py /app/
 COPY static /app/static
 COPY selftest.py /app/selftest.py
 ENV WORK_DIR=/work HOME=/work
