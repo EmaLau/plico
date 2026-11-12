@@ -45,7 +45,9 @@ Copia `.env.example` in `.env` e cambia quello che serve.
 | Variabile | Predefinito | Descrizione |
 |---|---|---|
 | `UPDF_BIND` / `UPDF_PORT` | `127.0.0.1` / `8080` | Dove pubblicare il servizio (`0.0.0.0` per tutta la rete) |
-| `MAX_UPLOAD_MB` | `2048` | Dimensione massima di ogni file caricato |
+| `MAX_UPLOAD_MB` | `0` | Dimensione massima di ogni file caricato; `0` = nessun limite |
+| `MAX_OUTPUT_MB` | `4096` | Dimensione massima dei risultati di una richiesta (es. tutte le immagini di *PDF in immagini*) |
+| `MAX_PARALLEL` | `2` | Lavori pesanti eseguiti insieme; gli altri aspettano il loro turno |
 | `MAX_PAGE_MPX` | `50` | Megapixel massimi per una pagina in *PDF in immagini*: le pagine più grandi vengono rese a dpi più bassi |
 | `UPDF_CPUS` / `UPDF_MEMORY` | `4` / `3G` | Limiti di risorse del container |
 | `UPDF_UID` / `UPDF_GID` | `1000` | Utente che esegue il servizio nel container |

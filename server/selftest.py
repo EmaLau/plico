@@ -113,12 +113,23 @@ except pikepdf.PasswordError:
 check("protect random owner password", s == 200 and not u.owner_password_matched and not old_owner
       and not u.allow.modify_other)
 # File oltre il limite su /api/info: 413, non "PDF non valido"
-max_mb = int(os.environ.get("MAX_UPLOAD_MB", "2048"))
-if max_mb <= 200:
+max_mb = int(os.environ.get("MAX_UPLOAD_MB", "0"))
+if 0 < max_mb <= 200:
     s, b, _ = post("/api/info", files=[("file", "big.pdf", b"0" * ((max_mb + 1) << 20))])
     check("info too large -> 413", s == 413, json.loads(b)["detail"])
 else:
-    print(f"SKIP info too large -> 413  (MAX_UPLOAD_MB={max_mb}, prova solo con limiti fino a 200 MB)")
+    print(f"SKIP info too large -> 413  (MAX_UPLOAD_MB={max_mb}: si prova solo con un limite tra 1 e 200 MB)")
+# Limite sui risultati: pagine di puro rumore, che come PNG non si comprimono
+max_out = float(os.environ.get("MAX_OUTPUT_MB", "4096"))
+if max_out <= 10:
+    noise = fitz.Pixmap(fitz.csRGB, 1200, 1700, os.urandom(1200 * 1700 * 3), False)
+    d = fitz.open()
+    for _ in range(3):
+        d.new_page(width=595, height=842).insert_image(fitz.Rect(0, 0, 595, 842), pixmap=noise)
+    s, b, _ = post("/api/pdf2img", {"format": "png", "dpi": "150"}, [("file", "noise.pdf", d.tobytes())])
+    check("pdf2img output limit -> 413", s == 413, json.loads(b)["detail"])
+else:
+    print(f"SKIP pdf2img output limit -> 413  (MAX_OUTPUT_MB={max_out:g}: si prova solo fino a 10 MB)")
 left = list((WORK / "upd").glob("*")) if (WORK / "upd").exists() else []
 check("no leftover temp files", not left, str(left))
 print("TUTTO OK" if ok else "CI SONO ERRORI")

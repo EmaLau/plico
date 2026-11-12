@@ -22,11 +22,13 @@ API (tutte POST multipart, rispondono col file risultato, o JSON {"detail": ...}
 """
 from __future__ import annotations
 
+import asyncio
 import base64
 import io
 import json
-import os
+import logging
 import math
+import os
 import re
 import secrets
 import shutil
@@ -43,13 +45,35 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from starlette.background import BackgroundTask
 
 STATIC = Path(__file__).parent / "static"
-TMP = Path(os.environ.get("WORK_DIR", "/tmp")) / "upd"
-MAX_MB = int(os.environ.get("MAX_UPLOAD_MB", "2048"))
+WORK = Path(os.environ.get("WORK_DIR", "/tmp"))
+TMP = WORK / "upd"
+# I file caricati vengono "parcheggiati" da Starlette in file temporanei: li teniamo nel volume dei
+# dati invece che nel sistema del container.
+SPOOL = WORK / "tmp"
+SPOOL.mkdir(parents=True, exist_ok=True)
+tempfile.tempdir = str(SPOOL)
+# Nessun limite di upload, a meno che non venga impostato (MB per file, 0 = nessun limite).
+MAX_MB = int(os.environ.get("MAX_UPLOAD_MB", "0"))
+# Dimensione massima dei risultati di una richiesta (es. tutte le immagini di "PDF in immagini").
+MAX_OUT = int(float(os.environ.get("MAX_OUTPUT_MB", "4096")) * 1024 * 1024)
+# Lavori pesanti eseguiti insieme; gli altri aspettano il loro turno.
+MAX_PARALLEL = max(1, int(os.environ.get("MAX_PARALLEL", "2")))
 # Pixel massimi per una pagina resa come immagine (milioni): oltre, i dpi della pagina si abbassano.
 MAX_PAGE_PX = int(float(os.environ.get("MAX_PAGE_MPX", "50")) * 1_000_000)
 IMG_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tif", ".tiff"}
 
 app = FastAPI(title="Universal-PDF", docs_url=None, redoc_url=None, openapi_url=None)
+log = logging.getLogger("universal-pdf")
+_slots: asyncio.Semaphore | None = None
+
+
+async def heavy(fn, *args, **kw):
+    """Esegue un lavoro pesante in un thread, al massimo MAX_PARALLEL alla volta."""
+    global _slots
+    if _slots is None:
+        _slots = asyncio.Semaphore(MAX_PARALLEL)
+    async with _slots:
+        return await run_in_threadpool(fn, *args, **kw)
 
 
 class Job:
@@ -81,8 +105,9 @@ async def http_error(_, exc: HTTPException):
 
 
 @app.exception_handler(Exception)
-async def any_error(_, exc: Exception):
-    return JSONResponse({"detail": f"Errore durante l'elaborazione: {exc}"}, status_code=500)
+async def any_error(request, exc: Exception):
+    log.error("Errore su %s", request.url.path, exc_info=exc)
+    return JSONResponse({"detail": "Errore durante l'elaborazione del file"}, status_code=500)
 
 
 async def save(job: Job, up: UploadFile, idx: int = 0) -> Path:
@@ -93,7 +118,7 @@ async def save(job: Job, up: UploadFile, idx: int = 0) -> Path:
     with dst.open("wb") as f:
         while chunk := await up.read(1 << 20):
             size += len(chunk)
-            if size > MAX_MB * 1024 * 1024:
+            if MAX_MB and size > MAX_MB * 1024 * 1024:
                 fail(f"File troppo grande (massimo {MAX_MB} MB)", 413)
             f.write(chunk)
     return dst
@@ -110,6 +135,7 @@ def open_pdf(path: Path, password: str = "") -> fitz.Document:
     except Exception:
         fail("Il file non e' un PDF valido")
     if doc.needs_pass and not doc.authenticate(password):
+        doc.close()
         fail("Il PDF e' protetto da password: sbloccalo prima con 'Proteggi / Sblocca'")
     return doc
 
@@ -146,7 +172,19 @@ def zip_files(job: Job, files: list[Path], name: str) -> Path:
 
 def finish_pdf(doc: fitz.Document, out: Path):
     doc.save(out, garbage=3, deflate=True)
-    doc.close()
+
+
+class Output:
+    """Conta i byte dei risultati di una richiesta e si ferma oltre MAX_OUTPUT_MB."""
+
+    def __init__(self):
+        self.size = 0
+
+    def add(self, path: Path) -> Path:
+        self.size += path.stat().st_size
+        if self.size > MAX_OUT:
+            fail(f"Il risultato supera {MAX_OUT >> 20} MB: scegli meno pagine o una risoluzione piu' bassa", 413)
+        return path
 
 
 # ---------------------------------------------------------------- pagine
@@ -184,20 +222,20 @@ async def thumbs(file: UploadFile = File(...), width: int = Form(160)):
         p = await save(job, file)
 
         def work():
-            doc = open_pdf(p)
-            if doc.page_count > 1000:
-                fail("Troppe pagine per l'anteprima (massimo 1000)")
-            pages = []
-            for page in doc:
-                r = page.rect
-                zoom = max(0.05, min(2.0, width / max(r.width, 1)))
-                pix = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom), alpha=False)
-                data = base64.b64encode(pix.tobytes("jpeg", jpg_quality=70)).decode()
-                pages.append({"w": r.width, "h": r.height, "rot": page.rotation,
-                              "img": "data:image/jpeg;base64," + data})
-            return {"pages": pages}
+            with open_pdf(p) as doc:
+                if doc.page_count > 1000:
+                    fail("Troppe pagine per l'anteprima (massimo 1000)")
+                pages = []
+                for page in doc:
+                    r = page.rect
+                    zoom = max(0.05, min(2.0, width / max(r.width, 1)))
+                    pix = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom), alpha=False)
+                    data = base64.b64encode(pix.tobytes("jpeg", jpg_quality=70)).decode()
+                    pages.append({"w": r.width, "h": r.height, "rot": page.rotation,
+                                  "img": "data:image/jpeg;base64," + data})
+                return {"pages": pages}
 
-        return await run_in_threadpool(work)
+        return await heavy(work)
     finally:
         job.cleanup()
 
@@ -211,19 +249,15 @@ async def merge(files: list[UploadFile] = File(...)):
         paths = [await save(job, f, i) for i, f in enumerate(files)]
 
         def work():
-            out = fitz.open()
-            for p in paths:
-                if p.suffix.lower() in IMG_EXT:
-                    out.insert_pdf(image_doc(p))
-                else:
-                    src = open_pdf(p)
-                    out.insert_pdf(src)
-                    src.close()
-            res = job.path("unito.pdf")
-            finish_pdf(out, res)
-            return res
+            with fitz.open() as out:
+                for p in paths:
+                    with (image_doc(p) if p.suffix.lower() in IMG_EXT else open_pdf(p)) as src:
+                        out.insert_pdf(src)
+                res = job.path("unito.pdf")
+                finish_pdf(out, res)
+            return Output().add(res)
 
-        res = await run_in_threadpool(work)
+        res = await heavy(work)
         return job.send(res, f"{stem(files[0])}-unito.pdf", "application/pdf")
     except BaseException:
         job.cleanup()
@@ -239,31 +273,32 @@ async def split(file: UploadFile = File(...), mode: str = Form("ranges"), ranges
         base = stem(file)
 
         def work():
-            doc = open_pdf(p)
-            n = doc.page_count
-            if mode == "every":
-                k = max(1, every)
-                groups = [list(range(i, min(i + k, n))) for i in range(0, n, k)]
-            else:
-                groups = parse_ranges(ranges, n)
-            if merge_out:  # "estrai": tutte le pagine scelte in un solo PDF
-                groups = [[i for g in groups for i in g]]
-            outs = []
-            for g in groups:
-                part = fitz.open()
-                for i in g:
-                    part.insert_pdf(doc, from_page=i, to_page=i)
-                label = f"{g[0]+1}" if len(g) == 1 else f"{g[0]+1}-{g[-1]+1}"
-                o = job.path(f"{base}_p{label}.pdf")
-                finish_pdf(part, o)
-                outs.append(o)
-            return outs
+            with open_pdf(p) as doc:
+                n = doc.page_count
+                if mode == "every":
+                    k = max(1, every)
+                    groups = [list(range(i, min(i + k, n))) for i in range(0, n, k)]
+                else:
+                    groups = parse_ranges(ranges, n)
+                if merge_out:  # "estrai": tutte le pagine scelte in un solo PDF
+                    groups = [[i for g in groups for i in g]]
+                outs, total = [], Output()
+                for g in groups:
+                    with fitz.open() as part:
+                        for i in g:
+                            part.insert_pdf(doc, from_page=i, to_page=i)
+                        label = f"{g[0]+1}" if len(g) == 1 else f"{g[0]+1}-{g[-1]+1}"
+                        o = job.path(f"{base}_p{label}.pdf")
+                        finish_pdf(part, o)
+                    outs.append(total.add(o))
+                return outs
 
-        outs = await run_in_threadpool(work)
-        if len(outs) == 1:
-            return job.send(outs[0], outs[0].name, "application/pdf")
-        z = await run_in_threadpool(zip_files, job, outs, f"{base}-diviso.zip")
-        return job.send(z, z.name, "application/zip")
+        def work_zip():  # lo ZIP nello stesso turno della coda, per non rimettersi in fila
+            outs = work()
+            return outs[0] if len(outs) == 1 else zip_files(job, outs, f"{base}-diviso.zip")
+
+        res = await heavy(work_zip)
+        return job.send(res, res.name, "application/zip" if res.suffix == ".zip" else "application/pdf")
     except BaseException:
         job.cleanup()
         raise
@@ -283,20 +318,19 @@ async def organize(file: UploadFile = File(...), pages: str = Form(...)):
         p = await save(job, file)
 
         def work():
-            doc = open_pdf(p)
-            out = fitz.open()
-            for idx, rot in spec:
-                if not 0 <= idx < doc.page_count:
-                    fail("Pagina inesistente")
-                out.insert_pdf(doc, from_page=idx, to_page=idx)
-                if rot:
-                    pg = out[-1]
-                    pg.set_rotation((pg.rotation + rot) % 360)
-            res = job.path("out.pdf")
-            finish_pdf(out, res)
-            return res
+            with open_pdf(p) as doc, fitz.open() as out:
+                for idx, rot in spec:
+                    if not 0 <= idx < doc.page_count:
+                        fail("Pagina inesistente")
+                    out.insert_pdf(doc, from_page=idx, to_page=idx)
+                    if rot:
+                        pg = out[-1]
+                        pg.set_rotation((pg.rotation + rot) % 360)
+                res = job.path("out.pdf")
+                finish_pdf(out, res)
+            return Output().add(res)
 
-        res = await run_in_threadpool(work)
+        res = await heavy(work)
         return job.send(res, f"{stem(file)}-modificato.pdf", "application/pdf")
     except BaseException:
         job.cleanup()
@@ -310,14 +344,14 @@ async def rotate(file: UploadFile = File(...), angle: int = Form(90)):
         p = await save(job, file)
 
         def work():
-            doc = open_pdf(p)
-            for pg in doc:
-                pg.set_rotation((pg.rotation + angle) % 360)
-            res = job.path("out.pdf")
-            finish_pdf(doc, res)
+            with open_pdf(p) as doc:
+                for pg in doc:
+                    pg.set_rotation((pg.rotation + angle) % 360)
+                res = job.path("out.pdf")
+                finish_pdf(doc, res)
             return res
 
-        res = await run_in_threadpool(work)
+        res = await heavy(work)
         return job.send(res, f"{stem(file)}-ruotato.pdf", "application/pdf")
     except BaseException:
         job.cleanup()
@@ -338,7 +372,7 @@ async def compress(file: UploadFile = File(...), level: str = Form("medium"), gr
     job = Job()
     try:
         p = await save(job, file)
-        open_pdf(p).close()
+        await heavy(lambda: open_pdf(p).close())
         preset, dpi = GS_LEVELS[level]
         res = job.path("out.pdf")
         cmd = ["gs", "-q", "-dNOPAUSE", "-dBATCH", "-dSAFER", "-sDEVICE=pdfwrite", "-dCompatibilityLevel=1.6",
@@ -349,9 +383,10 @@ async def compress(file: UploadFile = File(...), level: str = Form("medium"), gr
         if gray:
             cmd += ["-sColorConversionStrategy=Gray", "-dProcessColorModel=/DeviceGray"]
         cmd += [f"-sOutputFile={res}", str(p)]
-        r = await run_in_threadpool(subprocess.run, cmd, capture_output=True, text=True, timeout=1800)
+        r = await heavy(subprocess.run, cmd, capture_output=True, text=True, timeout=1800)
         if r.returncode != 0 or not res.exists():
-            fail("Ghostscript non e' riuscito a comprimere il file: " + (r.stderr or "")[-300:], 500)
+            log.error("Ghostscript: %s", (r.stderr or "")[-1000:])
+            fail("Ghostscript non e' riuscito a comprimere il file", 500)
         before, after = p.stat().st_size, res.stat().st_size
         if after >= before:  # non peggioriamo mai: restituiamo l'originale
             res = p
@@ -394,6 +429,7 @@ def image_doc(path: Path, page: str = "fit", margin: float = 0) -> fitz.Document
     pg = out.new_page(width=W, height=H)
     box = fitz.Rect(margin, margin, W - margin, H - margin)
     pg.show_pdf_page(box, src, 0, keep_proportion=True)
+    src.close()
     return out
 
 
@@ -406,17 +442,17 @@ async def img2pdf(files: list[UploadFile] = File(...), page: str = Form("fit"), 
         paths = [await save(job, f, i) for i, f in enumerate(files)]
 
         def work():
-            out = fitz.open()
-            for p in paths:
-                if p.suffix.lower() == ".pdf":
-                    out.insert_pdf(open_pdf(p))
-                else:
-                    out.insert_pdf(image_doc(p, page, max(0.0, min(margin, 72.0))))
-            res = job.path("out.pdf")
-            finish_pdf(out, res)
-            return res
+            with fitz.open() as out:
+                for p in paths:
+                    src = open_pdf(p) if p.suffix.lower() == ".pdf" else \
+                        image_doc(p, page, max(0.0, min(margin, 72.0)))
+                    with src:
+                        out.insert_pdf(src)
+                res = job.path("out.pdf")
+                finish_pdf(out, res)
+            return Output().add(res)
 
-        res = await run_in_threadpool(work)
+        res = await heavy(work)
         name = stem(files[0]) + ("-immagini.pdf" if len(files) > 1 else ".pdf")
         return job.send(res, name, "application/pdf")
     except BaseException:
@@ -445,29 +481,32 @@ async def pdf2img(file: UploadFile = File(...), format: str = Form("png"), dpi: 
         base = stem(file)
 
         def work():
-            doc = open_pdf(p)
-            idx = [i for g in parse_ranges(ranges, doc.page_count) for i in g] if ranges.strip() \
-                else range(doc.page_count)
-            outs, reduced = [], 0
-            for i in idx:
-                page_dpi = safe_dpi(doc[i], dpi)
-                reduced += page_dpi < dpi
-                pix = doc[i].get_pixmap(dpi=page_dpi, alpha=False)
-                o = job.path(f"{base}_p{i+1:03d}.{format}")
-                if format == "jpg":
-                    o.write_bytes(pix.tobytes("jpeg", jpg_quality=90))
-                else:
-                    pix.save(o)
-                outs.append(o)
-                del pix
-            return outs, reduced
+            with open_pdf(p) as doc:
+                idx = [i for g in parse_ranges(ranges, doc.page_count) for i in g] if ranges.strip() \
+                    else range(doc.page_count)
+                outs, reduced, total = [], 0, Output()
+                for i in idx:
+                    page_dpi = safe_dpi(doc[i], dpi)
+                    reduced += page_dpi < dpi
+                    pix = doc[i].get_pixmap(dpi=page_dpi, alpha=False)
+                    o = job.path(f"{base}_p{i+1:03d}.{format}")
+                    if format == "jpg":
+                        o.write_bytes(pix.tobytes("jpeg", jpg_quality=90))
+                    else:
+                        pix.save(o)
+                    del pix
+                    outs.append(total.add(o))
+                return outs, reduced
 
-        outs, reduced = await run_in_threadpool(work)
-        if len(outs) == 1:
-            resp = job.send(outs[0], outs[0].name, "image/png" if format == "png" else "image/jpeg")
+        def work_zip():  # lo ZIP nello stesso turno della coda, per non rimettersi in fila
+            outs, reduced = work()
+            return (outs[0] if len(outs) == 1 else zip_files(job, outs, f"{base}-immagini.zip")), reduced
+
+        res, reduced = await heavy(work_zip)
+        if res.suffix == ".zip":
+            resp = job.send(res, res.name, "application/zip")
         else:
-            z = await run_in_threadpool(zip_files, job, outs, f"{base}-immagini.zip")
-            resp = job.send(z, z.name, "application/zip")
+            resp = job.send(res, res.name, "image/png" if format == "png" else "image/jpeg")
         if reduced:
             resp.headers["X-Dpi-Reduced"] = str(reduced)
         return resp
@@ -497,11 +536,12 @@ async def protect(file: UploadFile = File(...), password: str = Form(...), owner
                                         modify_other=allow_edit, modify_annotation=allow_edit,
                                         modify_form=allow_edit, modify_assembly=allow_edit)
             res = job.path("out.pdf")
-            pdf.save(res, encryption=pikepdf.Encryption(user=password, owner=owner or secrets.token_urlsafe(24),
-                                                        R=6, allow=perms))
+            with pdf:
+                pdf.save(res, encryption=pikepdf.Encryption(user=password, owner=owner or secrets.token_urlsafe(24),
+                                                            R=6, allow=perms))
             return res
 
-        res = await run_in_threadpool(work)
+        res = await heavy(work)
         return job.send(res, f"{stem(file)}-protetto.pdf", "application/pdf")
     except BaseException:
         job.cleanup()
@@ -522,10 +562,11 @@ async def unlock(file: UploadFile = File(...), password: str = Form("")):
             except Exception:
                 fail("Il file non e' un PDF valido")
             res = job.path("out.pdf")
-            pdf.save(res)  # senza encryption= salva in chiaro
+            with pdf:
+                pdf.save(res)  # senza encryption= salva in chiaro
             return res
 
-        res = await run_in_threadpool(work)
+        res = await heavy(work)
         return job.send(res, f"{stem(file)}-sbloccato.pdf", "application/pdf")
     except BaseException:
         job.cleanup()
@@ -588,9 +629,10 @@ async def stamp(file: UploadFile = File(...),
                                    morph=(c, fitz.Matrix(page.rotation + wm_angle)))
             res = job.path("out.pdf")
             finish_pdf(doc, res)
+            doc.close()
             return res
 
-        res = await run_in_threadpool(work)
+        res = await heavy(work)
         return job.send(res, f"{stem(file)}-timbrato.pdf", "application/pdf")
     except BaseException:
         job.cleanup()

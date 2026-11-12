@@ -53,7 +53,9 @@ Copy `.env.example` to `.env` and change what you need.
 | Variable | Default | Description |
 |---|---|---|
 | `UPDF_BIND` / `UPDF_PORT` | `127.0.0.1` / `8080` | Where to publish the service (`0.0.0.0` for the whole network) |
-| `MAX_UPLOAD_MB` | `2048` | Maximum size of each uploaded file |
+| `MAX_UPLOAD_MB` | `0` | Maximum size of each uploaded file; `0` means no limit |
+| `MAX_OUTPUT_MB` | `4096` | Maximum total size of the results of one request (e.g. all the images of *PDF to images*) |
+| `MAX_PARALLEL` | `2` | Heavy jobs run at the same time; the others wait their turn |
 | `MAX_PAGE_MPX` | `50` | Maximum megapixels for a page rendered by *PDF to images*: larger pages get a lower DPI |
 | `UPDF_CPUS` / `UPDF_MEMORY` | `4` / `3G` | Container resource limits |
 | `UPDF_UID` / `UPDF_GID` | `1000` | User that runs the service inside the container |
@@ -109,11 +111,11 @@ docker-compose.yml
 
 ## To do before publishing
 
-- [ ] Cap the pixel size of each page in PDF → images: a tiny PDF with a huge page can exhaust the container memory
-- [ ] Random owner password when none is given (today it is derived from the user password)
-- [ ] `/api/info`: answer 413, not 400, for files over the limit; fix the `/api/thumbs` response in the docs (`img`, `rot`)
-- [ ] Enforce the upload limit while receiving, plus limits on the number of files, total size and output size
-- [ ] Limit on parallel heavy jobs
+- [x] Cap the pixel size of each page in PDF → images: a tiny PDF with a huge page can exhaust the container memory
+- [x] Random owner password when none is given
+- [x] `/api/info`: answer 413, not 400, for files over the limit; fix the `/api/thumbs` response in the docs (`img`, `rot`)
+- [x] Uploads are spooled to the data volume, not to the container filesystem; limit on output size
+- [x] Limit on parallel heavy jobs
 - [ ] pytest tests, browser test of the page, CI
 - [ ] English or bilingual interface, security headers
 - [ ] Review the name and make sure nothing is copied from the site that inspired it
