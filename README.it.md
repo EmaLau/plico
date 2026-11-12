@@ -44,7 +44,7 @@ Apri <http://localhost:8080>. Per controllare che tutti gli strumenti funzionino
 docker compose exec universal-pdf python3 /app/selftest.py
 ```
 
-Il selftest esegue 21 controlli sul server in funzione e salva alcuni risultati di esempio in `/work/selftest/` dentro il container.
+Il selftest esegue circa 50 controlli sul server in funzione (alcuni solo con l'impostazione relativa) e salva alcuni risultati di esempio in `/work/selftest/` dentro il container.
 
 > **Sicurezza.** Il servizio non ha login e di base ascolta solo su `127.0.0.1`. Aprilo alla rete solo se la rete è fidata (casa, VPN), oppure mettilo dietro un reverse proxy con autenticazione. Non esporlo direttamente su Internet.
 
@@ -82,6 +82,10 @@ curl -H "apikey: updf_..." -F files=@a.pdf -F files=@b.pdf -o unito.pdf http://l
 ```
 
 La pagina web non ha bisogno della chiave. Con l'interruttore *Chiave obbligatoria per le API* attivo in `/admin` (valore iniziale da `API_REQUIRE_KEY`) le chiamate senza chiave fatte fuori dalla pagina vengono rifiutate (401); una chiave senza il permesso per quello strumento riceve 403.
+
+## Documentazione
+
+La guida completa in italiano (installazione, pagina admin, catene, Nextcloud, funzionamento interno, sicurezza, manutenzione, sviluppo e componenti da riusare in altri progetti) è in **[docs/documentazione.md](docs/documentazione.md)**; il riferimento dell'API è in [docs/api.md](docs/api.md).
 
 ## Licenza
 

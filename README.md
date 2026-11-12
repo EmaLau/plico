@@ -55,7 +55,7 @@ Open <http://localhost:8080>. To check that every tool works:
 docker compose exec universal-pdf python3 /app/selftest.py
 ```
 
-The selftest runs about 30 checks (some only when the related setting is enabled) against the live server and saves sample results in `/work/selftest/` inside the container.
+The selftest runs about 50 checks (some only when the related setting is enabled) against the live server and saves sample results in `/work/selftest/` inside the container.
 
 > **Security note.** The web page has no login and by default the service listens only on `127.0.0.1`. API keys (below) control scripts, not the page. Open it to the network only if the network is trusted (home, VPN), or put it behind a reverse proxy with authentication. Do not expose it directly to the Internet.
 
@@ -92,7 +92,7 @@ Interactive documentation (Swagger UI) is at **`/apidocs`**, the OpenAPI schema 
 API keys work like in [Gokapi](https://github.com/Forceu/Gokapi):
 
 1. Set `UPDF_ADMIN_PASSWORD` and open **`/admin`**.
-2. Create a key with a name and the permissions it needs, one per tool (`info`, `merge`, `split`, `organize`, `rotate`, `compress`, `img2pdf`, `pdf2img`, `protect`, `stamp`). The full key is shown only once; the server keeps its SHA-256 hash, the last time it was used, and lets you change permissions or revoke it.
+2. Create a key with a name and the permissions it needs, one per tool (full list in [docs/api.md](docs/api.md#api-keys)). The full key is shown only once; the server keeps its SHA-256 hash, the last time it was used, and lets you change permissions or revoke it.
 3. Send it in the `apikey` header:
 
 ```bash
@@ -103,7 +103,7 @@ A wrong or revoked key gets `401`, a key without the permission for that tool ge
 
 ### Endpoints
 
-The complete reference, with examples for curl, Python and iPhone Shortcuts, is in **[docs/api.md](docs/api.md)**; the live one is at `/apidocs`.
+The complete reference, with examples for curl, Python and iPhone Shortcuts, is in **[docs/api.md](docs/api.md)**; the live one is at `/apidocs`. Everything else (installation, admin page, chains, Nextcloud, internals, security, maintenance) is in the **[complete documentation](docs/documentation.md)**.
 
 All endpoints are `POST` with `multipart/form-data`. They answer with the resulting file, or with JSON `{"detail": "..."}` and an HTTP error code.
 
@@ -189,6 +189,7 @@ server/
   requirements.txt pinned Python dependencies
 nextcloud-app/     the Nextcloud app (right click -> Strumenti PDF)
 docs/api.md        API reference and iPhone Shortcuts guide
+docs/documentation.md  complete guide (also in Italian: documentazione.md)
 tests/
   test_features.py tests of the phase-4 tools, chains, Office and magic folder (with fakes)
   test_api.py      API tests with FastAPI's TestClient (no container)
