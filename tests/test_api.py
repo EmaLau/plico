@@ -8,6 +8,7 @@ import fitz
 import pikepdf
 import pytest
 
+import ops
 import server
 from conftest import make_pdf, make_png, pages
 
@@ -29,7 +30,7 @@ def test_healthz(client):
 def test_info(client):
     r = client.post("/api/info", files=[up("a.pdf", PDF)])
     assert r.status_code == 200
-    assert r.json() == {"pages": 5, "encrypted": False, "size": len(PDF)}
+    assert r.json() == {"pages": 5, "encrypted": False, "size": len(PDF), "metadata": {}, "form_fields": 0}
 
 
 def test_info_garbage(client):
@@ -124,7 +125,7 @@ def test_huge_page_is_rendered_smaller(client):
     assert len(huge) < 2000
     r = client.post("/api/pdf2img", data={"format": "jpg", "dpi": "300"}, files=[up("huge.pdf", huge)])
     pix = fitz.Pixmap(r.content)
-    assert r.headers["x-dpi-reduced"] == "1" and pix.width * pix.height <= server.MAX_PAGE_PX
+    assert r.headers["x-dpi-reduced"] == "1" and pix.width * pix.height <= ops.MAX_PAGE_PX
 
 
 def test_open_password_does_not_give_owner_rights(client):
@@ -148,7 +149,7 @@ def test_no_upload_limit_by_default(client):
 
 
 def test_output_limit_gives_413(client, monkeypatch):
-    monkeypatch.setattr(server, "MAX_OUT", 100_000)
+    monkeypatch.setattr(ops, "MAX_OUT", 100_000)
     r = client.post("/api/pdf2img", data={"format": "png", "dpi": "150"}, files=[up("a.pdf", PDF)])
     assert r.status_code == 413 and "risultato supera" in r.json()["detail"]
 
@@ -156,7 +157,7 @@ def test_output_limit_gives_413(client, monkeypatch):
 def test_internal_error_hides_details(client, monkeypatch):
     def boom(*a, **k):
         raise RuntimeError("dettaglio segreto /percorso/interno")
-    monkeypatch.setattr(server, "parse_ranges", boom)
+    monkeypatch.setattr(ops, "parse_ranges", boom)
     with pytest.raises(RuntimeError):  # TestClient rilancia l'eccezione del server...
         client.post("/api/split", data={"mode": "ranges", "ranges": "1"}, files=[up("a.pdf", PDF)])
     from fastapi.testclient import TestClient
@@ -298,12 +299,12 @@ def test_every_italian_message_has_a_translation():
     """Ogni messaggio passato a fail() o HTTPException ha la sua traduzione inglese."""
     import re
     import i18n
-    src = (server.STATIC.parent / "server.py").read_text() + (server.STATIC.parent / "apikeys.py").read_text()
+    src = "".join((server.STATIC.parent / f).read_text()
+                  for f in ("server.py", "apikeys.py", "ops.py", "chains.py", "converter.py", "magic.py"))
     msgs = re.findall(r'(?:fail\(|HTTPException\(\d+, )f?"([^"]+)"', src)
-    assert len(msgs) > 25
-    for m in msgs:
-        sample = re.sub(r"\{[^}]*\}", "1", m)
-        assert i18n.t(sample, "en") != sample, f"manca la traduzione di: {m}"
+    assert len(msgs) > 60
+    missing = [m for m in msgs if i18n.t(re.sub(r"\{[^}]*\}", "1", m), "en") == re.sub(r"\{[^}]*\}", "1", m)]
+    assert not missing, f"mancano le traduzioni di: {missing}"
 
 
 def test_security_headers(client):

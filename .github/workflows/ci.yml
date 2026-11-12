@@ -19,8 +19,8 @@ jobs:
           python-version: "3.13"
           cache: pip
           cache-dependency-path: requirements-dev.txt
-      - name: Ghostscript
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ghostscript
+      - name: Ghostscript and Tesseract
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ghostscript tesseract-ocr tesseract-ocr-ita tesseract-ocr-eng
       - name: Python dependencies
         run: pip install -r requirements-dev.txt
       - name: Chromium for Playwright

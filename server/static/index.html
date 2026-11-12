@@ -139,6 +139,27 @@ dialog::backdrop{background:rgba(10,14,20,.55)}
 .lang button{border:0;background:transparent;color:var(--muted);font:inherit;font-size:12px;font-weight:600;padding:4px 9px;border-radius:999px;cursor:pointer}
 .lang button.on{background:var(--surface-2);color:var(--text)}
 .topr{display:flex;gap:10px;align-items:center}
+/* pagina grande: firma, annotazioni, oscuramento */
+.stbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px}
+.stbar .sp{flex:1}
+.stbar input[type=text]{width:auto;flex:1;min-width:160px}
+.stbar input[type=color]{width:44px;height:38px}
+.mode{border:1px solid var(--line);background:var(--surface-2);color:var(--text);border-radius:10px;padding:8px 12px;font:inherit;font-size:13.5px;cursor:pointer}
+.mode.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,var(--surface-2));font-weight:600}
+.stwrap{display:flex;gap:12px;margin-top:12px;align-items:flex-start}
+.strip{display:flex;flex-direction:column;gap:8px;max-height:75vh;overflow:auto;flex:none;padding:2px}
+.spg{border:2px solid transparent;border-radius:8px;background:var(--surface-2);padding:4px;cursor:pointer;line-height:0;position:relative}
+.spg.on{border-color:var(--accent)}
+.spg img{width:64px;display:block}
+.spg b{position:absolute;right:4px;bottom:4px;background:var(--accent);color:#fff;font-size:10px;line-height:1;border-radius:6px;padding:3px 5px}
+.stage{position:relative;line-height:0;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.25);touch-action:none;user-select:none;max-width:100%}
+.stage img{display:block;max-width:100%;max-height:75vh;width:auto}
+.stage svg{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair}
+.sigpad{display:grid;gap:8px;margin-top:14px}
+.sigpad canvas{width:100%;max-width:560px;height:160px;background:#fff;border:1px dashed var(--line);border-radius:12px;touch-action:none;cursor:crosshair}
+textarea{font:inherit;color:var(--text);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:9px 11px;width:100%;min-height:80px;resize:vertical}
+.fields{display:grid;gap:10px}
+@media (max-width:640px){ .stwrap{flex-direction:column-reverse} .strip{flex-direction:row;max-height:none;max-width:100%} }
 footer{margin-top:44px;color:var(--muted);font-size:13px;text-align:center}
 .hidden{display:none!important}
 @media (max-width:640px){ main{padding-top:22px} .grid{grid-template-columns:1fr 1fr} .tool p{display:none} .pages{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))} }
@@ -162,6 +183,10 @@ footer{margin-top:44px;color:var(--muted);font-size:13px;text-align:center}
     <div class="grid" id="g-conv"></div>
     <section class="tag">Sicurezza e modifica</section>
     <div class="grid" id="g-sec"></div>
+    <section class="tag">Modifica e firma</section>
+    <div class="grid" id="g-edit"></div>
+    <section class="tag">Strumenti avanzati</section>
+    <div class="grid" id="g-adv"></div>
   </div>
 
   <!-- STRUMENTO -->
@@ -197,6 +222,21 @@ footer{margin-top:44px;color:var(--muted);font-size:13px;text-align:center}
 <script>
 "use strict";
 const I = {
+  ocr:'<path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2"/><path d="M8 9h8M8 12h8M8 15h5"/>',
+  sign:'<path d="M3 17c3-4 5-9 7-9s-2 9 1 9 3-4 5-4 1 3 3 3"/><path d="M3 21h18"/>',
+  form:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h4"/>',
+  office:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M8.5 11l1.5 6 2-4 2 4 1.5-6"/>',
+  annot:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+  redact:'<rect x="3" y="5" width="18" height="4" rx="1"/><rect x="3" y="11" width="12" height="4" rx="1"/><path d="M3 19h8"/>',
+  compare:'<path d="M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M12 2v20"/>',
+  crop:'<path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/>',
+  nup:'<rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/>',
+  repair:'<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/>',
+  archive:'<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M10 13h4"/>',
+  meta:'<path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+  extractimg:'<rect x="3" y="3" width="18" height="14" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 13l-5-5-9 9M12 21h9"/>',
+  scan:'<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10"/>',
+  chain:'<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
   merge:'<path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3"/><path d="M16 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3"/><path d="M12 8v8M8 12h8"/>',
   split:'<path d="M6 3h12v7H6zM6 14h12v7H6z"/><path d="M3 12h2M9 12h2M13 12h2M19 12h2"/>',
   reorder:'<path d="M7 4v16M3 8l4-4 4 4"/><path d="M17 20V4M13 16l4 4 4-4"/>',
@@ -225,6 +265,22 @@ const TOOLS = [
   {id:"pdf2img", g:"conv", ic:"toimg", c:"#7c3aed", t:"PDF in immagini", d:"Esporta le pagine come PNG o JPG.", accept:".pdf"},
   {id:"proteggi", g:"sec", ic:"lock", c:"#334155", t:"Proteggi / Sblocca", d:"Aggiungi una password (AES-256) o toglila.", accept:".pdf"},
   {id:"timbra", g:"sec", ic:"stamp", c:"#db2777", t:"Numeri pagina e filigrana", d:"Numera le pagine e/o aggiungi un testo in filigrana.", accept:".pdf"},
+  {id:"ocr", g:"conv", ic:"ocr", c:"#0d9488", t:"OCR", d:"Rendi cercabile e copiabile il testo dei PDF scansionati.", accept:".pdf", needs:"ocr"},
+  {id:"office", g:"conv", ic:"office", c:"#2563eb", t:"Office in PDF", d:"Word, Excel, PowerPoint e OpenDocument in PDF.", accept:".doc,.docx,.odt,.rtf,.txt,.xls,.xlsx,.ods,.csv,.ppt,.pptx,.odp", needs:"office"},
+  {id:"pdf2office", g:"conv", ic:"office", c:"#1d4ed8", t:"PDF in Office", d:"Da PDF a Word, Excel, PowerPoint o testo.", accept:".pdf", needs:"office"},
+  {id:"pdfa", g:"conv", ic:"archive", c:"#475569", t:"PDF/A", d:"Converti in PDF/A per conservarlo a lungo.", accept:".pdf", needs:"ocr"},
+  {id:"scanner", g:"conv", ic:"scan", c:"#ea580c", t:"Scanner", d:"Foto di documenti raddrizzate e unite in un PDF.", multi:true, accept:"image/*"},
+  {id:"firma", g:"edit", ic:"sign", c:"#9333ea", t:"Firma PDF", d:"Disegna la firma o usa un'immagine e mettila dove vuoi.", accept:".pdf", editor:"place"},
+  {id:"moduli", g:"edit", ic:"form", c:"#0891b2", t:"Compila moduli", d:"Riempi i campi di un modulo PDF ed eventualmente bloccali.", accept:".pdf"},
+  {id:"annota", g:"edit", ic:"annot", c:"#ca8a04", t:"Annota PDF", d:"Evidenziatore, note, caselle di testo, frecce e disegno.", accept:".pdf", editor:"draw"},
+  {id:"oscura", g:"edit", ic:"redact", c:"#111827", t:"Oscura", d:"Togli davvero testo e zone sensibili, non solo coprirli.", accept:".pdf", editor:"areas"},
+  {id:"metadati", g:"edit", ic:"meta", c:"#64748b", t:"Metadati e pulizia", d:"Cambia titolo e autore o togli i dati nascosti.", accept:".pdf"},
+  {id:"confronta", g:"adv", ic:"compare", c:"#be123c", t:"Confronta PDF", d:"Trova le differenze tra due versioni di un documento.", multi:true, accept:".pdf", min:2, max:2},
+  {id:"pagine", g:"adv", ic:"crop", c:"#16a34a", t:"Ritaglia e ridimensiona", d:"Togli i margini o porta tutte le pagine in A4.", accept:".pdf"},
+  {id:"nup", g:"adv", ic:"nup", c:"#7c3aed", t:"Più pagine per foglio", d:"2, 4 o più pagine per foglio, o un opuscolo da stampare.", accept:".pdf"},
+  {id:"estraiimg", g:"adv", ic:"extractimg", c:"#0284c7", t:"Estrai immagini e testo", d:"Salva le immagini (ZIP) o tutto il testo (TXT).", accept:".pdf"},
+  {id:"ripara", g:"adv", ic:"repair", c:"#b45309", t:"Ripara PDF", d:"Prova a recuperare un PDF danneggiato che non si apre.", accept:".pdf"},
+  {id:"catena", g:"adv", ic:"chain", c:"#db2777", t:"Più file e catene", d:"Più operazioni di fila, anche su tanti file insieme (ZIP).", multi:true, accept:".pdf"},
 ];
 const T = Object.fromEntries(TOOLS.map(t => [t.id, t]));
 const $ = s => document.querySelector(s);
@@ -241,6 +297,8 @@ for (const t of TOOLS) {
 
 /* ---------------------------------------------------------------- stato */
 let tool = null, files = [], pages = [], pending = null, xhr = null, resultUrl = null, resultFile = null;
+let FEAT = {office: false, ocr: true}, CHAINS = [], cur = 0, marks = [], big = {}, drawMode = "highlight", sig = {}, live = null,
+    formFields = [], meta = null;
 
 function route() {
   const id = location.hash.slice(1);
@@ -264,7 +322,7 @@ function openTool(id) {
 
 function reset() {
   if (xhr) xhr.abort();
-  files = []; pages = [];
+  files = []; pages = []; marks = []; big = {}; cur = 0; sig = {}; live = null; formFields = []; meta = null;
   $("#work").classList.remove("hidden"); $("#done").classList.add("hidden");
   $("#editor").innerHTML = ""; $("#err").textContent = "";
   $("#bar").classList.add("hidden"); $("#barTxt").classList.add("hidden");
@@ -289,9 +347,11 @@ $("#pickGrid").onclick = e => { const b = e.target.closest("button"); if (!b) re
 $("#pickClose").onclick = () => { pending = null; $("#pick").close(); };
 
 function okType(f) {
-  const pdf = /\.pdf$/i.test(f.name) || f.type === "application/pdf";
-  const img = f.type.startsWith("image/") || /\.(jpe?g|png|webp|gif|bmp|tiff?)$/i.test(f.name);
-  return tool.accept.includes("image") ? (pdf || img) : pdf;
+  const ext = (f.name.match(/\.[^.]+$/) || [""])[0].toLowerCase();
+  const img = f.type.startsWith("image/") || /^\.(jpe?g|png|webp|gif|bmp|tiff?|heic|heif)$/.test(ext);
+  const pdf = ext === ".pdf" || f.type === "application/pdf";
+  const acc = tool.accept.split(",");
+  return (acc.includes("image/*") && img) || (acc.includes(".pdf") && pdf) || (ext && ext !== ".pdf" && acc.includes(ext));
 }
 
 function addFiles(list) {
@@ -299,9 +359,11 @@ function addFiles(list) {
   if (good.length < list.length) $("#err").textContent = "Alcuni file non sono del tipo giusto e sono stati ignorati.";
   else $("#err").textContent = "";
   if (!good.length) return;
-  files = tool.multi ? files.concat(good) : [good[0]];
+  files = tool.multi ? files.concat(good).slice(0, tool.max || 1e9) : [good[0]];
   renderFiles(); renderOpts();
   if (tool.editor || tool.id === "dividi" || tool.id === "pdf2img") loadPages();
+  if (tool.id === "moduli") loadForm();
+  if (tool.id === "metadati") loadMeta();
 }
 
 function renderFiles() {
@@ -350,13 +412,14 @@ async function loadPages() {
     const r = await fetch("api/thumbs", {method: "POST", body: fd});
     const j = await r.json();
     if (!r.ok) throw new Error(j.detail || "Errore");
-    pages = j.pages.map((p, i) => ({i, img: p.img, rot: 0, del: false, sel: false, base: p.rot}));
+    pages = j.pages.map((p, i) => ({i, img: p.img, rot: 0, del: false, sel: false, base: p.rot, w: p.w, h: p.h}));
     renderPages(); updateRun();  // senza ridisegnare le opzioni: si perderebbe quello che e' gia' stato scritto
   } catch (e) { ed.innerHTML = ""; $("#err").textContent = e.message; pages = []; updateRun(); }
 }
 
 function renderPages() {
   const ed = $("#editor"), m = tool.editor;
+  if (["place", "draw", "areas"].includes(m)) return renderStage();
   if (!m) { // dividi / pdf2img: solo informazione
     ed.innerHTML = pages.length ? `<p class="hint" style="margin-top:12px">Il documento ha <b>${pages.length}</b> pagine.</p>` : "";
     return;
@@ -416,6 +479,169 @@ document.addEventListener("click", e => {
 });
 dragList($("#editor"), ".pg", (from, to) => { const [p] = pages.splice(from, 1); pages.splice(to, 0, p); drawPages(); });
 
+
+/* ---------------------------------------------------------------- pagina grande: firma, annotazioni, oscuramento */
+const MODES = {draw: [["highlight", "Evidenzia"], ["rect", "Riquadro"], ["text", "Testo"], ["note", "Nota"], ["arrow", "Freccia"], ["ink", "Disegno"]],
+               areas: [["area", "Zona da oscurare"]], place: [["sign", "Posizione della firma"]]};
+const HELP = {place: "Disegna la firma qui sopra (o scegli un'immagine), poi trascina sulla pagina il riquadro dove metterla.",
+              draw: "Scegli lo strumento e trascina sulla pagina. Per Testo e Nota scrivi prima il testo qui sopra.",
+              areas: "Trascina sulla pagina sopra le zone da oscurare. Puoi anche scrivere più sotto le parole da cercare in tutto il documento."};
+const clamp = v => Math.max(0, Math.min(1, v));
+
+function renderStage() {
+  const m = tool.editor, ed = $("#editor");
+  if (!MODES[m].some(([k]) => k === drawMode)) drawMode = MODES[m][0][0];
+  ed.innerHTML = `${m === "place" ? `<div class="sigpad"><canvas id="pad" width="1120" height="320"></canvas>
+      <div class="row"><button class="btn ghost small" type="button" id="padClear">Cancella la firma</button>
+      <button class="btn ghost small" type="button" id="sigPick">Usa un'immagine</button><input type="file" id="sigFile" accept="image/png,image/jpeg" hidden></div></div>` : ""}
+    <div class="stbar">${m === "draw" ? MODES.draw.map(([k, l]) => `<button type="button" class="mode ${k === drawMode ? "on" : ""}" data-mode="${k}">${l}</button>`).join("")
+        + `<input type="text" id="atext" placeholder="Testo per Testo e Nota"><input type="color" id="acolor" value="#ffd400" title="Colore">` : ""}
+      <span class="sp"></span>${m !== "place" ? `<button class="btn ghost small" type="button" id="undo">Togli l'ultima</button><button class="btn ghost small" type="button" id="clearAll">Togli tutte</button>` : ""}</div>
+    <p class="hint" style="margin-top:8px">${HELP[m]}</p>
+    <div class="stwrap"><div class="strip" id="strip"></div><div class="stage" id="stage"><img id="bigImg" alt=""><svg id="ov"></svg></div></div>`;
+  if (m === "place") initPad();
+  drawStrip(); showPage(Math.min(cur, pages.length - 1));
+}
+
+function drawStrip() {
+  const st = $("#strip"); if (!st) return;
+  st.innerHTML = pages.map((p, k) => {
+    const n = marks.filter(x => x.page === k).length + (sig.page === k ? 1 : 0);
+    return `<button type="button" class="spg ${k === cur ? "on" : ""}" data-k="${k}"><img src="${p.img}" alt="">${n ? `<b>${n}</b>` : ""}</button>`;
+  }).join("");
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest(".spg"); if (b) { showPage(+b.dataset.k); return; }
+  const md = e.target.closest(".mode"); if (md) {
+    drawMode = md.dataset.mode; document.querySelectorAll(".mode").forEach(x => x.classList.toggle("on", x === md));
+    const c = $("#acolor"); if (c) c.value = {highlight: "#ffd400", note: "#ffd400", text: "#1d4ed8"}[drawMode] || "#e5322d";
+    return;
+  }
+  if (e.target.id === "undo") { marks.pop(); drawMarks(); drawStrip(); updateRun(); }
+  if (e.target.id === "clearAll") { marks = []; drawMarks(); drawStrip(); updateRun(); }
+});
+
+async function showPage(k) {
+  if (k < 0) return;
+  cur = k; drawStrip();
+  const p = pages[k], img = $("#bigImg"), ov = $("#ov");
+  if (!img) return;
+  img.src = big[k] || p.img;
+  const w = p.w, h = p.h;  // gia' come si vede (rotazione compresa)
+  ov.setAttribute("viewBox", `0 0 ${w} ${h}`); ov.dataset.w = w; ov.dataset.h = h;
+  drawMarks();
+  if (!big[k]) {
+    const fd = new FormData(); fd.append("file", files[0]); fd.append("pages", String(k + 1)); fd.append("width", "1400");
+    try {
+      const j = await (await fetch("api/thumbs", {method: "POST", body: fd})).json();
+      big[k] = j.pages[0].img; if (cur === k) img.src = big[k];
+    } catch {}
+  }
+}
+
+function drawMarks() {
+  const ov = $("#ov"); if (!ov) return;
+  const W = +ov.dataset.w, H = +ov.dataset.h, sw = W / 300;
+  const R = b => `x="${Math.min(b[0], b[2]) * W}" y="${Math.min(b[1], b[3]) * H}" width="${Math.abs(b[2] - b[0]) * W}" height="${Math.abs(b[3] - b[1]) * H}"`;
+  const one = x => {
+    const c = x.color || "#ffd400";
+    if (x.type === "highlight") return `<rect ${R(x.box)} fill="${c}" fill-opacity=".38"/>`;
+    if (x.type === "rect") return `<rect ${R(x.box)} fill="none" stroke="${c}" stroke-width="${sw * 2}"/>`;
+    if (x.type === "area") return `<rect ${R(x.box)} fill="#000" fill-opacity=".75"/>`;
+    if (x.type === "text") return `<rect ${R(x.box)} fill="none" stroke="${c}" stroke-dasharray="${sw * 3}" stroke-width="${sw}"/><text x="${Math.min(x.box[0], x.box[2]) * W + sw * 3}" y="${Math.min(x.box[1], x.box[3]) * H + W / 45}" font-size="${W / 50}" fill="${c}">${esc(x.text || "")}</text>`;
+    if (x.type === "note") return `<circle cx="${x.at[0] * W}" cy="${x.at[1] * H}" r="${W / 70}" fill="${c}"/><text x="${x.at[0] * W + W / 50}" y="${x.at[1] * H + W / 150}" font-size="${W / 60}" fill="#333">${esc(x.text || "")}</text>`;
+    if (x.type === "arrow") return `<line x1="${x.from[0] * W}" y1="${x.from[1] * H}" x2="${x.to[0] * W}" y2="${x.to[1] * H}" stroke="${c}" stroke-width="${sw * 2}" marker-end="url(#ah)"/>`;
+    if (x.type === "ink") return `<polyline points="${x.points.map(q => `${q[0] * W},${q[1] * H}`).join(" ")}" fill="none" stroke="${c}" stroke-width="${sw * 2}" stroke-linecap="round" stroke-linejoin="round"/>`;
+    return "";
+  };
+  let h = `<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker></defs>`;
+  h += marks.filter(x => x.page === cur).map(one).join("") + (live && live.page === cur ? one(live) : "");
+  if (tool.editor === "place" && sig.page === cur && sig.box) {
+    h += `<rect ${R(sig.box)} fill="none" stroke="#9333ea" stroke-dasharray="${sw * 4}" stroke-width="${sw}"/>`;
+    if (sig.data) h += `<image href="${sig.data}" ${R(sig.box)} preserveAspectRatio="xMidYMid meet"/>`;
+  }
+  ov.innerHTML = h;
+}
+
+function ptr(e) { const r = $("#ov").getBoundingClientRect(); return [clamp((e.clientX - r.left) / r.width), clamp((e.clientY - r.top) / r.height)]; }
+document.addEventListener("pointerdown", e => {
+  if (e.target.closest("#ov") === null) return;
+  e.preventDefault(); $("#ov").setPointerCapture(e.pointerId);
+  const p = ptr(e), color = $("#acolor")?.value || (tool.editor === "areas" ? "#000000" : "#ffd400");
+  const text = $("#atext")?.value.trim() || "";
+  if (drawMode === "note") { marks.push({page: cur, type: "note", at: p, text: text || "Nota", color}); drawMarks(); drawStrip(); updateRun(); return; }
+  live = drawMode === "arrow" ? {page: cur, type: "arrow", from: p, to: p, color}
+       : drawMode === "ink" ? {page: cur, type: "ink", points: [p], color}
+       : {page: cur, type: drawMode, box: [p[0], p[1], p[0], p[1]], text, color};
+});
+document.addEventListener("pointermove", e => {
+  if (!live) return;
+  const p = ptr(e);
+  if (live.type === "arrow") live.to = p; else if (live.type === "ink") live.points.push(p); else { live.box[2] = p[0]; live.box[3] = p[1]; }
+  if (live.type === "sign") { sig.page = cur; sig.box = live.box; }
+  drawMarks();
+});
+document.addEventListener("pointerup", () => {
+  if (!live) return;
+  const x = live; live = null;
+  const big_ = x.box ? Math.abs(x.box[2] - x.box[0]) > 0.01 && Math.abs(x.box[3] - x.box[1]) > 0.005
+             : x.type === "arrow" ? Math.hypot(x.to[0] - x.from[0], x.to[1] - x.from[1]) > 0.01 : x.points.length > 2;
+  if (x.type === "sign") { if (big_) { sig.page = cur; sig.box = x.box.map((v, i) => v); } }
+  else if (big_) { if (x.box) x.box = [Math.min(x.box[0], x.box[2]), Math.min(x.box[1], x.box[3]), Math.max(x.box[0], x.box[2]), Math.max(x.box[1], x.box[3])]; marks.push(x); }
+  drawMarks(); drawStrip(); updateRun();
+});
+
+function initPad() {
+  const c = $("#pad"), g = c.getContext("2d");
+  g.lineWidth = 5; g.lineCap = "round"; g.lineJoin = "round"; g.strokeStyle = "#111";
+  let down = false, any = false;
+  const at = e => { const r = c.getBoundingClientRect(); return [(e.clientX - r.left) * c.width / r.width, (e.clientY - r.top) * c.height / r.height]; };
+  c.onpointerdown = e => { down = true; c.setPointerCapture(e.pointerId); g.beginPath(); g.moveTo(...at(e)); };
+  c.onpointermove = e => { if (!down) return; g.lineTo(...at(e)); g.stroke(); any = true; };
+  c.onpointerup = () => { down = false; if (any) setSig(trimmed(c)); };
+  $("#padClear").onclick = () => { g.clearRect(0, 0, c.width, c.height); any = false; sig.data = null; drawMarks(); updateRun(); };
+  $("#sigPick").onclick = () => $("#sigFile").click();
+  $("#sigFile").onchange = () => { const f = $("#sigFile").files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => setSig(rd.result); rd.readAsDataURL(f); };
+}
+function setSig(data) {
+  sig.data = data;
+  if (sig.page == null || !sig.box) { sig.page = cur; sig.box = [0.58, 0.8, 0.92, 0.9]; }
+  drawMarks(); drawStrip(); updateRun();
+}
+function trimmed(c) {
+  const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+  let x0 = c.width, y0 = c.height, x1 = 0, y1 = 0;
+  for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) if (d[(y * c.width + x) * 4 + 3] > 10) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  if (x1 <= x0) return null;
+  const o = document.createElement("canvas"); o.width = x1 - x0 + 12; o.height = y1 - y0 + 12;
+  o.getContext("2d").drawImage(c, x0 - 6, y0 - 6, o.width, o.height, 0, 0, o.width, o.height);
+  return o.toDataURL("image/png");
+}
+function dataBlob(d) {
+  const [h, b] = d.split(","), bin = atob(b), u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return new Blob([u], {type: h.match(/:(.*?);/)[1]});
+}
+
+/* ---------------------------------------------------------------- moduli e metadati */
+async function loadForm() {
+  const fd = new FormData(); fd.append("file", files[0]);
+  try {
+    const r = await fetch("api/forms", {method: "POST", body: fd}), j = await r.json();
+    if (!r.ok) throw new Error(j.detail || "Errore");
+    const seen = new Set(); formFields = j.fields.filter(f => !seen.has(f.name) && seen.add(f.name) && f.type !== "Button");
+    const radios = {}; j.fields.filter(f => f.type === "RadioButton").forEach(f => (radios[f.name] = radios[f.name] || []).push(f.on));
+    formFields.forEach(f => { if (radios[f.name]) f.options = radios[f.name]; });
+    if (!formFields.length) $("#err").textContent = "Questo PDF non ha campi da compilare.";
+  } catch (e) { $("#err").textContent = e.message; formFields = []; }
+  renderOpts();
+}
+async function loadMeta() {
+  const fd = new FormData(); fd.append("file", files[0]);
+  try { const r = await fetch("api/info", {method: "POST", body: fd}); meta = (await r.json()).metadata || {}; } catch { meta = {}; }
+  renderOpts();
+}
+
 /* ---------------------------------------------------------------- opzioni per strumento */
 function seg(name, items, on) {
   return `<div class="seg" data-seg="${name}">${items.map(([v, l, s]) =>
@@ -424,7 +650,7 @@ function seg(name, items, on) {
 document.addEventListener("click", e => {
   const b = e.target.closest(".seg button"); if (!b) return;
   b.parentNode.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
-  if (b.parentNode.dataset.seg === "split" || b.parentNode.dataset.seg === "pmode") renderOpts(true);
+  if (["split", "pmode", "pmode2", "nmode"].includes(b.parentNode.dataset.seg)) renderOpts(true);
   updateRun();
 });
 const segv = n => document.querySelector(`[data-seg="${n}"] .on`)?.dataset.v;
@@ -433,7 +659,7 @@ const chk = id => !!document.getElementById(id)?.checked;
 
 function renderOpts(keep) {
   const o = $("#opts"), id = tool.id;
-  const cur = keep ? {split: segv("split"), pmode: segv("pmode")} : {};
+  const cur = keep ? {split: segv("split"), pmode: segv("pmode")} : {};  // (pmode2/nmode letti piu' sotto)
   let h = "";
   if (!files.length && !tool.multi) { o.innerHTML = ""; updateRun(); return; }
   if (id === "dividi") {
@@ -470,22 +696,92 @@ function renderOpts(keep) {
         <label class="f">Testo<input type="text" id="wm" placeholder="es. BOZZA, RISERVATO, COPIA"></label>
         <div class="row"><label class="f">Dimensione <input type="range" id="wsize" min="20" max="140" value="64"></label><label class="f">Trasparenza <input type="range" id="wop" min="5" max="80" value="20"></label></div>
         <div class="row"><label class="f">Inclinazione<select id="wang"><option value="45">Diagonale</option><option value="0">Orizzontale</option><option value="90">Verticale</option></select></label><label class="f">Colore<input type="color" id="wcol" value="#c0392b"></label></div></fieldset>`;
+  if (id === "timbra") h += `<fieldset><legend>Intestazione e piè di pagina</legend>
+        <div class="row"><label class="f">Intestazione<input type="text" id="hdr" placeholder="es. {file} · {date}"></label><label class="f">Piè di pagina<input type="text" id="ftr" placeholder="es. Riservato · pagina {n} di {tot}"></label></div>
+        <p class="hint">Puoi usare {n} (pagina), {tot} (totale), {date} (data) e {file} (nome del file).</p></fieldset>
+      <fieldset><legend>Logo o immagine in filigrana</legend><input type="file" id="logo" accept="image/png,image/jpeg">
+        <label class="f">Dimensione del logo <input type="range" id="lsize" min="10" max="90" value="40"></label>
+        <p class="hint">Usa la stessa trasparenza della filigrana di testo.</p></fieldset>`;
+  if (id === "ocr") h = `<div class="row"><label class="f">Lingua del testo<select id="olang"><option value="ita+eng">Italiano e inglese</option><option value="ita">Italiano</option><option value="eng">Inglese</option></select></label></div>
+      <label class="check"><input type="checkbox" id="oforce"> Rifai l'OCR anche sulle pagine che hanno già del testo</label>
+      <p class="hint">Il PDF resta uguale a vista, ma il testo diventa ricercabile e copiabile. Può richiedere qualche secondo per pagina.</p>`;
+  if (id === "pdfa") h = `<label class="check"><input type="checkbox" id="aocr"> Fai anche l'OCR delle pagine scansionate</label>
+      <p class="hint">PDF/A-2 incorpora i font e i colori, così il documento si apre uguale anche fra molti anni.</p>`;
+  if (id === "office") h = `<p class="hint">La conversione la fa il Convertitore universale collegato a questo server.</p>`;
+  if (id === "pdf2office") h = `<div class="row"><label class="f">Formato<select id="otarget"><option value="docx">Word (.docx)</option><option value="odt">OpenDocument (.odt)</option><option value="xlsx">Excel (.xlsx)</option><option value="pptx">PowerPoint (.pptx)</option><option value="txt">Testo (.txt)</option></select></label></div>`;
+  if (id === "scanner") h = `<div class="row">${seg("smode", [["color", "Colori", "come la foto"], ["gray", "Grigi", "più leggero"], ["bw", "Bianco e nero", "testo nitido"]], "bw")}</div>
+      <div class="row"><label class="f">Pagina<select id="spaper"><option value="a4">A4</option><option value="letter">Lettera (US)</option><option value="fit">Come la foto</option></select></label></div>
+      <p class="hint">Fotografa il foglio su un piano scuro: i bordi vengono trovati da soli e la pagina raddrizzata. Dal telefono puoi scattare direttamente.</p>`;
+  if (id === "firma") h = `<p class="hint">La firma viene inserita come immagine. Non è una firma digitale con certificato.</p>`;
+  if (id === "annota") h = `<label class="check"><input type="checkbox" id="aflat"> Rendi le annotazioni parte della pagina (non si possono più modificare)</label>`;
+  if (id === "oscura") h = `<label class="f">Parole o frasi da oscurare in tutto il documento (una per riga)<textarea id="terms" placeholder="es. Mario Rossi"></textarea></label>
+      <fieldset><legend>Cerca anche</legend><div class="row">
+        <label class="check"><input type="checkbox" class="rp" value="email"> Indirizzi email</label><label class="check"><input type="checkbox" class="rp" value="phone"> Numeri di telefono</label>
+        <label class="check"><input type="checkbox" class="rp" value="iban"> IBAN</label><label class="check"><input type="checkbox" class="rp" value="cf"> Codici fiscali</label>
+        <label class="check"><input type="checkbox" class="rp" value="card"> Numeri di carta</label></div></fieldset>
+      <p class="hint">Il testo oscurato viene tolto dal file, non solo coperto: non si può recuperare. Vengono tolti anche i metadati.</p>`;
+  if (id === "moduli") h = formFields.length ? `<div class="fields">${formFields.map((f, k) => {
+        const lab = esc(f.label || f.name);
+        if (f.type === "CheckBox") return `<label class="check"><input type="checkbox" data-f="${k}" ${f.value && f.value !== "Off" ? "checked" : ""}> ${lab}</label>`;
+        if (f.options && f.options.length) return `<label class="f">${lab}<select data-f="${k}">${["", ...f.options].map(o => `<option ${o === f.value ? "selected" : ""}>${esc(o)}</option>`).join("")}</select></label>`;
+        return `<label class="f">${lab}<input type="text" data-f="${k}" value="${esc(f.value || "")}"></label>`;
+      }).join("")}</div><label class="check"><input type="checkbox" id="fflat"> Blocca i campi dopo averli compilati</label>` : `<p class="hint">Leggo i campi del modulo…</p>`;
+  if (id === "metadati") h = meta ? `<div class="row"><label class="f">Titolo<input type="text" id="mtitle" value="${esc(meta.title || "")}"></label><label class="f">Autore<input type="text" id="mauthor" value="${esc(meta.author || "")}"></label></div>
+      <div class="row"><label class="f">Oggetto<input type="text" id="msubject" value="${esc(meta.subject || "")}"></label><label class="f">Parole chiave<input type="text" id="mkeywords" value="${esc(meta.keywords || "")}"></label></div>
+      <label class="check"><input type="checkbox" id="mclean"> Togli tutti i dati nascosti (metadati, JavaScript, allegati, miniature, testo nascosto)</label>` : `<p class="hint">Leggo i metadati…</p>`;
+  if (id === "confronta") h = `<p class="hint">Scegli due PDF: il primo è la versione A, il secondo la B. Ottieni un PDF con le parole cambiate e le pagine affiancate, con le differenze in rosso.</p>`;
+  if (id === "pagine") {
+    const s = keep && segv("pmode2") || "resize";
+    h = seg("pmode2", [["resize", "Ridimensiona", "tutto nello stesso formato"], ["crop", "Ritaglia", "margini in mm"], ["trim", "Ritaglio automatico", "togli il bianco"]], s);
+    if (s === "resize") h += `<div class="row"><label class="f">Formato<select id="ppaper"><option value="a4">A4</option><option value="a3">A3</option><option value="a5">A5</option><option value="letter">Lettera (US)</option><option value="legal">Legal (US)</option></select></label>
+        <label class="f">Margine (mm)<input type="number" id="pmargin" value="0" min="0" max="50"></label></div>`;
+    if (s === "crop") h += `<div class="row">${["Sopra", "Destra", "Sotto", "Sinistra"].map((l, i) => `<label class="f">${l} (mm)<input type="number" id="pm${i}" value="10" min="0" max="200"></label>`).join("")}</div>`;
+    if (s === "trim") h += `<label class="f" style="max-width:220px">Spazio da lasciare (mm)<input type="number" id="pmargin" value="5" min="0" max="50"></label>`;
+  }
+  if (id === "nup") {
+    const s = keep && segv("nmode") || "nup";
+    h = seg("nmode", [["nup", "Più pagine per foglio", "risparmia carta"], ["booklet", "Opuscolo", "fronte-retro, piegato a metà"]], s);
+    if (s === "nup") h += `<div class="row"><label class="f">Pagine per foglio<select id="nn"><option>2</option><option selected>4</option><option>6</option><option>8</option><option>9</option><option>16</option></select></label>
+        <label class="f">Foglio<select id="npaper"><option value="a4">A4</option><option value="a3">A3</option><option value="letter">Lettera (US)</option></select></label></div>`;
+    else h += `<p class="hint">Stampa fronte-retro girando sul lato corto, poi piega i fogli a metà.</p>`;
+  }
+  if (id === "estraiimg") h = seg("ekind", [["images", "Immagini", "in uno ZIP"], ["text", "Testo", "file .txt"]], "images")
+      + `<label class="f">Solo queste pagine (vuoto = tutte)<input type="text" id="eranges" placeholder="es. 1, 3-5"></label>`;
+  if (id === "ripara") h = `<p class="hint">Ricostruisce la struttura del file. Se il PDF è troppo danneggiato non sempre è possibile.</p>`;
+  if (id === "catena") h = `<label class="f">Catena salvata<select id="csaved"><option value="">— scegli tu le operazioni qui sotto —</option>${CHAINS.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join("")}</select></label>
+      <fieldset id="csteps"><legend>Operazioni, nell'ordine</legend>
+        <label class="check"><input type="checkbox" id="c_ocr"> OCR (italiano e inglese)</label>
+        <label class="check"><input type="checkbox" id="c_clean"> Togli i dati nascosti</label>
+        <div class="row"><label class="check"><input type="checkbox" id="c_comp"> Comprimi</label><select id="c_level" style="max-width:200px"><option value="low">Leggera</option><option value="medium" selected>Consigliata</option><option value="high">Forte</option></select></div>
+        <label class="check"><input type="checkbox" id="c_num"> Numeri di pagina (1 / 10)</label>
+        <label class="check"><input type="checkbox" id="c_pdfa"> PDF/A</label>
+        <div class="row"><label class="check"><input type="checkbox" id="c_prot"> Proteggi con password</label><input type="password" id="c_pw" style="max-width:240px" autocomplete="new-password"></div></fieldset>
+      <p class="hint">Con più file ricevi uno ZIP con un PDF per ogni file. Le catene salvate si gestiscono nella pagina admin.</p>`;
   o.innerHTML = h;
   updateRun();
 }
 document.addEventListener("input", updateRun);
+document.addEventListener("change", e => { if (e.target.matches("#logo, .rp, #csaved, #csteps input")) updateRun(); });
 
 function updateRun() {
   const b = $("#run"); if (!tool) return;
   const labels = {unisci:"Unisci PDF", dividi:"Dividi PDF", estrai:"Estrai pagine", riordina:"Salva nuovo ordine", ruota:"Applica rotazione", elimina:"Elimina pagine",
-    comprimi:"Comprimi PDF", img2pdf:"Crea PDF", pdf2img:"Converti in immagini", proteggi: segv("pmode") === "unlock" ? "Sblocca PDF" : "Proteggi PDF", timbra:"Applica"};
+    comprimi:"Comprimi PDF", img2pdf:"Crea PDF", pdf2img:"Converti in immagini", proteggi: segv("pmode") === "unlock" ? "Sblocca PDF" : "Proteggi PDF", timbra:"Applica", ocr:"Avvia l'OCR", office:"Converti in PDF", pdf2office:"Converti", pdfa:"Converti in PDF/A",
+    scanner:"Crea PDF", firma:"Firma PDF", moduli:"Compila", annota:"Salva le annotazioni", oscura:"Oscura", metadati:"Salva",
+    confronta:"Confronta", pagine:"Applica", nup:"Crea", estraiimg:"Estrai", ripara:"Ripara", catena:"Avvia"};
   b.textContent = labels[tool.id];
   let ok = files.length >= (tool.min || 1);
   if (tool.editor) ok = ok && pages.length > 0 && (tool.editor === "select" ? pages.some(p => p.sel) : pages.some(p => !p.del))
     && !(tool.editor === "delete" && !pages.some(p => p.del)) && !(tool.editor === "rotate" && !pages.some(p => p.rot));
   if (tool.id === "dividi" && segv("split") === "ranges") ok = ok && val("ranges").trim();
   if (tool.id === "proteggi" && segv("pmode") !== "unlock") ok = ok && val("pw") && val("pw") === val("pw2");
-  if (tool.id === "timbra") ok = ok && (chk("num") || val("wm").trim());
+  if (tool.id === "timbra") ok = ok && (chk("num") || val("wm").trim() || val("hdr").trim() || val("ftr").trim() || !!$("#logo")?.files.length);
+  if (tool.id === "firma") ok = ok && !!sig.data && sig.box;
+  if (tool.id === "annota") ok = ok && marks.length > 0;
+  if (tool.id === "oscura") ok = ok && (marks.length > 0 || val("terms").trim() || document.querySelector(".rp:checked"));
+  if (tool.id === "moduli") ok = ok && formFields.length > 0;
+  if (tool.id === "metadati") ok = ok && !!meta;
+  if (tool.id === "catena") ok = ok && (val("csaved") || ["c_ocr", "c_clean", "c_comp", "c_num", "c_pdfa", "c_prot"].some(chk)) && !(chk("c_prot") && !val("c_pw") && !val("csaved"));
   b.disabled = !ok;
   const e = $("#err");
   if (tool.id === "proteggi" && val("pw2") && val("pw") !== val("pw2")) { e.textContent = "Le due password non coincidono."; e.dataset.pw = "1"; }
@@ -495,7 +791,7 @@ function updateRun() {
 /* ---------------------------------------------------------------- invio */
 function request() {
   const fd = new FormData(), id = tool.id, f0 = files[0];
-  const P = (k, v) => fd.append(k, v);
+  const P = (k, v, n) => n ? fd.append(k, v, n) : fd.append(k, v);
   switch (id) {
     case "unisci": files.forEach(f => P("files", f)); return ["merge", fd];
     case "img2pdf": files.forEach(f => P("files", f)); P("page", val("page")); P("margin", val("margin")); return ["img2pdf", fd];
@@ -517,7 +813,49 @@ function request() {
     case "timbra":
       P("file", f0); P("numbers", chk("num")); P("num_pos", val("npos")); P("num_fmt", val("nfmt")); P("num_start", val("nstart") || 1);
       P("num_size", val("nsize") || 11); P("num_skip_first", chk("nskip")); P("watermark", val("wm")); P("wm_size", val("wsize"));
-      P("wm_opacity", val("wop") / 100); P("wm_angle", val("wang")); P("wm_color", val("wcol")); return ["stamp", fd];
+      P("wm_opacity", val("wop") / 100); P("wm_angle", val("wang")); P("wm_color", val("wcol"));
+      P("header", val("hdr")); P("footer", val("ftr"));
+      if ($("#logo")?.files[0]) { P("wm_image", $("#logo").files[0]); P("wm_image_scale", val("lsize") / 100); }
+      return ["stamp", fd];
+    case "ocr": P("file", f0); P("lang", val("olang")); P("force", chk("oforce")); return ["ocr", fd];
+    case "pdfa": P("file", f0); P("ocr_text", chk("aocr")); return ["pdfa", fd];
+    case "office": P("file", f0); P("target", "pdf"); return ["office", fd];
+    case "pdf2office": P("file", f0); P("target", val("otarget")); return ["office", fd];
+    case "scanner": files.forEach(f => P("files", f)); P("mode", segv("smode")); P("paper", val("spaper")); return ["scan", fd];
+    case "firma": P("file", f0); P("image", dataBlob(sig.data), "firma.png"); P("page", sig.page); P("box", JSON.stringify(sig.box)); return ["sign", fd];
+    case "annota": P("file", f0); P("items", JSON.stringify(marks)); P("flatten", chk("aflat")); return ["annotate", fd];
+    case "oscura": P("file", f0); P("terms", val("terms")); P("presets", [...document.querySelectorAll(".rp:checked")].map(x => x.value).join(","));
+      P("areas", JSON.stringify(marks.map(m => ({page: m.page, box: m.box})))); return ["redact", fd];
+    case "moduli": {
+      const v = {}; document.querySelectorAll("[data-f]").forEach(el => { const f = formFields[+el.dataset.f]; v[f.name] = el.type === "checkbox" ? el.checked : el.value; });
+      P("file", f0); P("values", JSON.stringify(v)); P("flatten", chk("fflat")); return ["fill", fd];
+    }
+    case "metadati": P("file", f0); P("clean", chk("mclean"));
+      if (!chk("mclean")) { P("title", val("mtitle")); P("author", val("mauthor")); P("subject", val("msubject")); P("keywords", val("mkeywords")); }
+      return ["metadata", fd];
+    case "confronta": P("file_a", files[0]); P("file_b", files[1]); return ["compare", fd];
+    case "pagine": {
+      const s = segv("pmode2"); P("file", f0); P("mode", s);
+      if (s === "resize") { P("paper", val("ppaper")); P("margin_mm", val("pmargin") || 0); }
+      if (s === "crop") ["top", "right", "bottom", "left"].forEach((k, i) => P(k, val("pm" + i) || 0));
+      if (s === "trim") P("margin_mm", val("pmargin") || 0);
+      return ["pages", fd];
+    }
+    case "nup": P("file", f0); P("mode", segv("nmode")); P("n", val("nn") || 4); P("paper", val("npaper") || "a4"); return ["nup", fd];
+    case "estraiimg": P("file", f0); P("kind", segv("ekind")); P("pages", val("eranges")); return ["extract", fd];
+    case "ripara": P("file", f0); return ["repair", fd];
+    case "catena": {
+      files.forEach(f => P("files", f));
+      if (val("csaved")) { P("chain", val("csaved")); return ["chain", fd]; }
+      const st = [];
+      if (chk("c_ocr")) st.push({op: "ocr", lang: "ita+eng"});
+      if (chk("c_clean")) st.push({op: "metadata", clean: true});
+      if (chk("c_comp")) st.push({op: "compress", level: val("c_level")});
+      if (chk("c_num")) st.push({op: "stamp", numbers: true, num_fmt: "{n} / {tot}"});
+      if (chk("c_pdfa")) st.push({op: "pdfa"});
+      if (chk("c_prot")) st.push({op: "protect", password: val("c_pw")});
+      P("steps", JSON.stringify(st)); return ["chain", fd];
+    }
   }
 }
 
@@ -561,7 +899,8 @@ function showDone(blob, name, before, after, total) {
   resultUrl = URL.createObjectURL(blob);
   resultFile = new File([blob], name, {type: blob.type});
   $("#dl").href = resultUrl; $("#dl").download = name;
-  $("#dl").textContent = "Scarica " + (/\.zip$/i.test(name) ? "ZIP" : /\.(png|jpg)$/i.test(name) ? "immagine" : "PDF");
+  const ext = (name.match(/\.([^.]+)$/) || [, "pdf"])[1].toLowerCase();
+  $("#dl").textContent = "Scarica " + (/^(png|jpg)$/.test(ext) ? "immagine" : ext.toUpperCase());
   let t = `${name} · ${fmt(blob.size)}`;
   if (before && after) {
     const b = +before, a = +after, pct = Math.round((1 - a / b) * 100);
@@ -570,13 +909,20 @@ function showDone(blob, name, before, after, total) {
   $("#doneTxt").textContent = t;
   const isPdf = /\.pdf$/i.test(name);
   $("#next").classList.toggle("hidden", !isPdf);
-  $("#chips").innerHTML = isPdf ? TOOLS.filter(x => x.id !== tool.id && x.id !== "img2pdf").map(x => `<button class="chip" data-t="${x.id}">${x.t}</button>`).join("") : "";
+  $("#chips").innerHTML = isPdf ? TOOLS.filter(x => x.id !== tool.id && !["img2pdf", "scanner", "office", "confronta"].includes(x.id) && !(x.needs && !FEAT[x.needs])).map(x => `<button class="chip" data-t="${x.id}">${x.t}</button>`).join("") : "";
   $("#work").classList.add("hidden"); $("#done").classList.remove("hidden");
   window.scrollTo({top: 0, behavior: "smooth"});
 }
 $("#chips").onclick = e => { const b = e.target.closest("button"); if (!b) return; pending = [resultFile]; location.hash = b.dataset.t; };
 $("#again").onclick = () => reset();
 
+fetch("api/features").then(r => r.json()).then(f => {
+  FEAT = f;
+  TOOLS.filter(t => t.needs && !f[t.needs]).forEach(t => {
+    document.querySelectorAll(`a.tool[href="#${t.id}"], #pickGrid [data-t="${t.id}"]`).forEach(el => el.remove());
+  });
+}).catch(() => {});
+fetch("api/chains").then(r => r.json()).then(j => { CHAINS = j.chains || []; if (tool?.id === "catena") renderOpts(true); }).catch(() => {});
 route();
 </script>
 </body>

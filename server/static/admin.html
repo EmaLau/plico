@@ -123,6 +123,29 @@ code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13p
       <div id="keys"></div>
       <div class="err" id="listErr"></div>
     </section>
+
+    <section class="panel">
+      <h2>Catene salvate</h2>
+      <p class="note">Una catena mette in fila più operazioni. Si usa dalla pagina web (Più file e catene), dall'API (<code>/api/chain</code> con <code>chain</code>) e, se attivi la cartella magica, da Nextcloud.</p>
+      <p class="note" id="magicNote"></p>
+      <div id="chains"></div>
+      <h2 style="margin-top:18px">Nuova catena</h2>
+      <form id="chainForm">
+        <label class="f">Nome della catena<input type="text" id="cname" maxlength="60" required></label>
+        <div class="perms">
+          <label class="check"><input type="checkbox" data-op="ocr"> OCR (italiano e inglese)</label>
+          <label class="check"><input type="checkbox" data-op="metadata"> Togli i dati nascosti</label>
+          <label class="check"><input type="checkbox" data-op="compress"> Comprimi</label>
+          <label class="check"><input type="checkbox" data-op="stamp"> Numeri di pagina (1 / 10)</label>
+          <label class="check"><input type="checkbox" data-op="pdfa"> PDF/A</label>
+          <label class="check"><input type="checkbox" data-op="protect"> Proteggi con password</label>
+        </div>
+        <div class="row"><label class="f">Password (solo per Proteggi)<input type="password" id="cpw" autocomplete="new-password"></label>
+          <label class="check"><input type="checkbox" id="cmagic"> Cartella magica in Nextcloud</label>
+          <button class="btn" type="submit">Crea catena</button></div>
+      </form>
+      <div class="err" id="chainErr"></div>
+    </section>
   </div>
 </main>
 <script>
@@ -155,7 +178,7 @@ async function start() {
   $("#logout").classList.toggle("hidden", !st.logged || !st.admin_login);
   showAdminLogin(st.admin_login, st.has_password);
   showRequire(st.require_key);
-  if (st.logged) { permBoxes($("#newPerms"), [], "new"); load(); }
+  if (st.logged) { permBoxes($("#newPerms"), [], "new"); load(); loadChains(); }
   else if (st.enabled) $("#pw").focus();
 }
 
@@ -235,6 +258,43 @@ $("#keys").onchange = async e => {
   const box = e.target.closest(".key"); if (!box) return;
   try { await call("PUT", "admin/api/keys/" + box.dataset.id, {perms: checked(box)}); }
   catch (err) { $("#listErr").textContent = err.message; load(); }
+};
+
+const OPS = {ocr: {op: "ocr", lang: "ita+eng"}, metadata: {op: "metadata", clean: true}, compress: {op: "compress", level: "medium"},
+             stamp: {op: "stamp", numbers: true, num_fmt: "{n} / {tot}"}, pdfa: {op: "pdfa"}};
+const OPNAME = {ocr: "OCR", metadata: "Togli i dati nascosti", compress: "Comprimi", stamp: "Numeri di pagina", pdfa: "PDF/A",
+                protect: "Proteggi", unlock: "Sblocca", rotate: "Ruota", repair: "Ripara", pages: "Ritaglia e ridimensiona",
+                nup: "Più pagine per foglio", redact: "Oscura", organize: "Riordina"};
+async function loadChains() {
+  try {
+    const j = await call("GET", "admin/api/chains");
+    $("#magicNote").textContent = j.magic
+      ? `Cartella magica attiva: ${j.magic.url}, cartella "${j.magic.dir}", controllo ogni ${j.magic.poll} s. Elaborati: ${j.magic_stats.processed}, errori: ${j.magic_stats.errors}${j.magic_stats.last_error ? " · ultimo errore: " + j.magic_stats.last_error : ""}.`
+      : "Cartella magica non configurata: servono NEXTCLOUD_URL, NEXTCLOUD_USER e NEXTCLOUD_PASSWORD sul server.";
+    $("#chains").innerHTML = j.chains.length ? j.chains.map(c => `<div class="key" data-c="${esc(c.id)}">
+        <div class="khead"><div><b>${esc(c.name)}</b><div class="meta">${c.steps.map(s => esc(OPNAME[s.op] || s.op)).join(" → ")}</div></div>
+        <div class="row"><label class="check"><input type="checkbox" data-magic ${c.magic ? "checked" : ""}> Cartella magica in Nextcloud</label>
+        <button class="btn danger small" data-cdel>Elimina</button></div></div></div>`).join("") : `<p class="note">Nessuna catena per ora.</p>`;
+  } catch (e) { $("#chainErr").textContent = e.message; }
+}
+$("#chainForm").onsubmit = async e => {
+  e.preventDefault(); $("#chainErr").textContent = "";
+  const order = ["ocr", "metadata", "compress", "stamp", "pdfa", "protect"];
+  const on = new Set([...document.querySelectorAll("[data-op]:checked")].map(x => x.dataset.op));
+  const steps = order.filter(k => on.has(k)).map(k => k === "protect" ? {op: "protect", password: $("#cpw").value} : OPS[k]);
+  if (!steps.length) return $("#chainErr").textContent = "Scegli almeno un'operazione";
+  try { await call("POST", "admin/api/chains", {name: $("#cname").value, steps, magic: $("#cmagic").checked}); e.target.reset(); loadChains(); }
+  catch (err) { $("#chainErr").textContent = err.message; }
+};
+$("#chains").onclick = async e => {
+  const del = e.target.closest("[data-cdel]"); if (!del) return;
+  if (del.dataset.confirm !== "1") { del.dataset.confirm = "1"; del.textContent = "Conferma eliminazione"; return; }
+  try { await call("DELETE", "admin/api/chains/" + del.closest("[data-c]").dataset.c); loadChains(); } catch (err) { $("#chainErr").textContent = err.message; }
+};
+$("#chains").onchange = async e => {
+  if (!e.target.matches("[data-magic]")) return;
+  try { await call("PUT", "admin/api/chains/" + e.target.closest("[data-c]").dataset.c, {magic: e.target.checked}); loadChains(); }
+  catch (err) { $("#chainErr").textContent = err.message; loadChains(); }
 };
 
 start().catch(e => { $("#disabled").classList.remove("hidden"); $("#disabled").querySelector("p").textContent = e.message; });

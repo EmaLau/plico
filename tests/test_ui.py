@@ -19,6 +19,8 @@ def files(tmp_path_factory):
     (d / "b.pdf").write_bytes(make_pdf(2))
     (d / "x.png").write_bytes(make_png())
     (d / "y.png").write_bytes(make_png(300, 400))
+    from test_features import form_pdf
+    (d / "modulo.pdf").write_bytes(form_pdf())
     return d
 
 
@@ -83,7 +85,7 @@ def test_tool(page, files, tool, names, prepare, expect):
 
 
 def test_home_lists_all_tools(page):
-    assert page.locator("a.tool").count() == 11
+    assert page.locator("a.tool").count() >= 23  # 27 strumenti, meno quelli facoltativi non attivi
 
 
 @pytest.mark.parametrize("locale,title,button", [("en-US", "All the PDF tools, at home", "Merge PDF"),
@@ -133,4 +135,78 @@ def test_admin_page_login(page, live_server):
     page.click("#createForm button[type=submit]")
     page.wait_for_selector("#created:not(.hidden)")
     assert page.locator("#newKey").text_content().startswith("updf_")
-    assert page.locator(".key").count() == 1
+    assert page.locator("#keys .key", has_text="prova ui").count() == 1
+
+
+def drag(page, sel, a, b, steps=8):
+    box = page.locator(sel).bounding_box()
+    page.mouse.move(box["x"] + box["width"] * a[0], box["y"] + box["height"] * a[1])
+    page.mouse.down()
+    page.mouse.move(box["x"] + box["width"] * b[0], box["y"] + box["height"] * b[1], steps=steps)
+    page.mouse.up()
+
+
+def draw_signature(p):
+    p.wait_for_selector("#ov")
+    drag(p, "#pad", (0.1, 0.6), (0.6, 0.3))
+    drag(p, "#ov", (0.5, 0.7), (0.9, 0.8))
+
+
+def annotate(p):
+    p.wait_for_selector("#ov")
+    drag(p, "#ov", (0.1, 0.1), (0.6, 0.15))
+    p.click("[data-mode=arrow]")
+    drag(p, "#ov", (0.2, 0.5), (0.7, 0.6))
+    p.click("[data-mode=text]")
+    p.fill("#atext", "Ciao")
+    drag(p, "#ov", (0.2, 0.3), (0.6, 0.35))
+
+
+def redact(p):
+    p.wait_for_selector("#ov")
+    drag(p, "#ov", (0.05, 0.05), (0.95, 0.2))
+    p.fill("#terms", "Pagina 2")
+
+
+NEW_TOOLS = [
+    ("scanner", ["x.png", "y.png"], None, r"\.pdf"),
+    ("firma", ["a.pdf"], draw_signature, r"\.pdf"),
+    ("annota", ["a.pdf"], annotate, r"\.pdf"),
+    ("oscura", ["a.pdf"], redact, r"\.pdf"),
+    ("moduli", ["modulo.pdf"], lambda p: (p.wait_for_selector("[data-f]"), p.fill("input[type=text][data-f]", "Mario")), r"\.pdf"),
+    ("metadati", ["a.pdf"], lambda p: (p.wait_for_selector("#mtitle"), p.fill("#mtitle", "Relazione")), r"\.pdf"),
+    ("confronta", ["a.pdf", "b.pdf"], None, r"\.pdf"),
+    ("pagine", ["a.pdf"], None, r"\.pdf"),
+    ("nup", ["a.pdf"], None, r"\.pdf"),
+    ("estraiimg", ["a.pdf"], lambda p: p.click("[data-seg=ekind] [data-v=text]"), r"\.txt"),
+    ("ripara", ["a.pdf"], None, r"\.pdf"),
+    ("catena", ["a.pdf", "b.pdf"], lambda p: p.check("#c_num"), r"\.zip"),
+]
+
+
+@pytest.mark.parametrize("tool,names,prepare,expect", NEW_TOOLS, ids=[t[0] for t in NEW_TOOLS])
+def test_new_tool(page, files, tool, names, prepare, expect):
+    assert re.search(expect, run_tool(page, tool, names, files, prepare))
+
+
+def test_stamp_header_and_logo(page, files):
+    def prep(p):
+        p.fill("#hdr", "Relazione {date}")
+        p.uncheck("#num")
+        p.set_input_files("#logo", str(files / "x.png"))
+    assert "timbrato" in run_tool(page, "timbra", ["a.pdf"], files, prep)
+
+
+def test_admin_chains(page, live_server):
+    from conftest import ADMIN_PASSWORD
+    page.goto(live_server + "/admin")
+    page.fill("#pw", ADMIN_PASSWORD)
+    page.click("#loginForm button")
+    page.wait_for_selector("#chains .key")
+    n = page.locator("#chains .key").count()
+    page.fill("#cname", "Prova UI")
+    page.check("[data-op=compress]")
+    page.check("[data-op=stamp]")
+    page.click("#chainForm button[type=submit]")
+    page.locator("#chains .key", has_text="Prova UI").wait_for()
+    assert "Comprimi → Numeri di pagina" in page.locator("#chains").text_content()

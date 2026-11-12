@@ -38,6 +38,21 @@ PERMISSIONS = {
     "pdf2img": "PDF in immagini",
     "protect": "Proteggi e sblocca",
     "stamp": "Numeri di pagina e filigrana",
+    "ocr": "OCR (testo ricercabile)",
+    "sign": "Firma",
+    "forms": "Compila moduli",
+    "annotate": "Annotazioni",
+    "redact": "Oscura",
+    "compare": "Confronta",
+    "pages": "Ritaglia e ridimensiona",
+    "nup": "Più pagine per foglio e opuscolo",
+    "repair": "Ripara",
+    "pdfa": "PDF/A",
+    "metadata": "Metadati e pulizia",
+    "extract": "Estrai immagini e testo",
+    "scan": "Scanner da telefono",
+    "office": "Word, Excel, PowerPoint",
+    "chain": "Catene e più file insieme",
 }
 
 SESSION_COOKIE = "updf_session"
@@ -186,12 +201,14 @@ class KeyStore:
                 raise HTTPException(401, "Chiave API non valida")
             if perm not in rec["perms"]:
                 raise HTTPException(403, f"La chiave non ha il permesso '{perm}'")
+            perms = set(rec["perms"])
             now = time.time()
             rec["last_used"] = int(now)
             if now - self._last_save >= LAST_USED_EVERY:
                 self._save()
             else:
                 self._dirty = True
+            return perms
 
     def flush(self):
         with self.lock:

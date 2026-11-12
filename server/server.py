@@ -29,22 +29,15 @@ import asyncio
 import base64
 import contextlib
 import hashlib
-import io
 import json
 import logging
-import math
 import os
 import re
-import secrets
 import shutil
-import subprocess
 import tempfile
-import zipfile
 from pathlib import Path
 from urllib.parse import urlparse
 
-import fitz  # PyMuPDF
-import pikepdf
 from fastapi import Body, FastAPI, File, Form, HTTPException, Request, Security, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
@@ -52,7 +45,12 @@ from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
 
 import apikeys
+import chains
+import converter
 import i18n
+import magic
+import ops
+from ops import fail
 
 STATIC = Path(__file__).parent / "static"
 WORK = Path(os.environ.get("WORK_DIR", "/tmp"))
@@ -64,13 +62,8 @@ SPOOL.mkdir(parents=True, exist_ok=True)
 tempfile.tempdir = str(SPOOL)
 # Nessun limite di upload, a meno che non venga impostato (MB per file, 0 = nessun limite).
 MAX_MB = int(os.environ.get("MAX_UPLOAD_MB", "0"))
-# Dimensione massima dei risultati di una richiesta (es. tutte le immagini di "PDF in immagini").
-MAX_OUT = int(float(os.environ.get("MAX_OUTPUT_MB", "4096")) * 1024 * 1024)
 # Lavori pesanti eseguiti insieme; gli altri aspettano il loro turno.
 MAX_PARALLEL = max(1, int(os.environ.get("MAX_PARALLEL", "2")))
-# Pixel massimi per una pagina resa come immagine (milioni): oltre, i dpi della pagina si abbassano.
-MAX_PAGE_PX = int(float(os.environ.get("MAX_PAGE_MPX", "50")) * 1_000_000)
-IMG_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tif", ".tiff"}
 
 API_DOC = """Strumenti PDF self-hosted. Ogni richiesta lavora in una cartella temporanea cancellata subito dopo l'invio.
 
@@ -87,9 +80,16 @@ DATA = Path(os.environ.get("DATA_DIR", str(WORK / "data")))
 KEYS = apikeys.KeyStore(DATA)
 
 
+CHAINS = chains.ChainStore(DATA)
+MAGIC_STATS = {"processed": 0, "errors": 0, "last_run": None, "last_error": None}
+
+
 @contextlib.asynccontextmanager
 async def lifespan(_):
+    task = asyncio.create_task(magic.loop(CHAINS.list, WORK / "magic", heavy, MAGIC_STATS)) if magic.config() else None
     yield
+    if task:
+        task.cancel()
     KEYS.flush()  # salva l'"ultimo uso" delle chiavi rimasto in memoria
 
 
@@ -98,7 +98,8 @@ app = FastAPI(title="Universal-PDF", version="1.0", description=API_DOC, lifespa
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 API = {"dependencies": [Security(apikeys.header_scheme)], "tags": ["Strumenti PDF"]}
 # percorso dell'API -> permesso richiesto alla chiave
-PATH_PERM = {f"/api/{p}": p for p in apikeys.PERMISSIONS} | {"/api/thumbs": "info", "/api/unlock": "protect"}
+PATH_PERM = {f"/api/{p}": p for p in apikeys.PERMISSIONS} | {"/api/thumbs": "info", "/api/unlock": "protect",
+                                                              "/api/fill": "forms", "/api/forms": "forms"}
 log = logging.getLogger("universal-pdf")
 _slots: asyncio.Semaphore | None = None
 
@@ -129,10 +130,6 @@ class Job:
         return FileResponse(path, filename=name, media_type=media,
                             background=BackgroundTask(self.cleanup),
                             headers={"Cache-Control": "no-store"})
-
-
-def fail(msg: str, status: int = 400):
-    raise HTTPException(status, msg)
 
 
 def error(request: Request, msg, status: int) -> JSONResponse:
@@ -203,7 +200,7 @@ async def guard(request: Request, call_next):
         if perm and request.method == "POST":
             key = request.headers.get("apikey")
             if key:
-                KEYS.check_key(key, perm)
+                request.state.key_perms = KEYS.check_key(key, perm)
             elif KEYS.require_key and not KEYS.verify("session", request.cookies.get(apikeys.SESSION_COOKIE)):
                 fail("Serve una chiave API nell'intestazione 'apikey'", 401)
     except HTTPException as e:
@@ -229,66 +226,6 @@ def stem(up: UploadFile) -> str:
     s = Path(up.filename or "documento").stem
     return re.sub(r'[\\/:*?"<>|]+', "_", s)[:120] or "documento"
 
-
-def open_pdf(path: Path, password: str = "") -> fitz.Document:
-    try:
-        doc = fitz.open(path)
-    except Exception:
-        fail("Il file non e' un PDF valido")
-    if doc.needs_pass and not doc.authenticate(password):
-        doc.close()
-        fail("Il PDF e' protetto da password: sbloccalo prima con 'Proteggi / Sblocca'")
-    return doc
-
-
-def parse_ranges(text: str, n: int) -> list[list[int]]:
-    """"1-3, 5, 8-" -> [[0,1,2],[4],[7..n-1]] (pagine da 1)."""
-    out = []
-    for part in re.split(r"[,;\s]+", text.strip()):
-        if not part:
-            continue
-        m = re.fullmatch(r"(\d*)\s*-\s*(\d*)|(\d+)", part)
-        if not m:
-            fail(f"Intervallo non valido: '{part}'")
-        if m.group(3):
-            a = b = int(m.group(3))
-        else:
-            a = int(m.group(1) or 1)
-            b = int(m.group(2) or n)
-        if not (1 <= a <= n and 1 <= b <= n):
-            fail(f"'{part}' e' fuori dal documento (pagine 1-{n})")
-        out.append(list(range(a - 1, b)) if a <= b else list(range(a - 1, b - 2, -1)))
-    if not out:
-        fail("Scrivi almeno un intervallo di pagine")
-    return out
-
-
-def zip_files(job: Job, files: list[Path], name: str) -> Path:
-    z = job.path(name)
-    with zipfile.ZipFile(z, "w", zipfile.ZIP_DEFLATED) as zf:
-        for f in files:
-            zf.write(f, f.name)
-    return z
-
-
-def finish_pdf(doc: fitz.Document, out: Path):
-    doc.save(out, garbage=3, deflate=True)
-
-
-class Output:
-    """Conta i byte dei risultati di una richiesta e si ferma oltre MAX_OUTPUT_MB."""
-
-    def __init__(self):
-        self.size = 0
-
-    def add(self, path: Path) -> Path:
-        self.size += path.stat().st_size
-        if self.size > MAX_OUT:
-            fail(f"Il risultato supera {MAX_OUT >> 20} MB: scegli meno pagine o una risoluzione piu' bassa", 413)
-        return path
-
-
-# ---------------------------------------------------------------- pagine
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def index():
@@ -381,449 +318,363 @@ async def keys_delete(request: Request, kid: str):
     return {"ok": True}
 
 
+# ---------------------------------------------------------------- strumenti
+
+def send(job: Job, res: ops.Result, name: str | None = None):
+    """Invia il risultato; name = nome del file da proporre (se None si usa quello del risultato)."""
+    if name is None or Path(name).suffix.lower() != res.path.suffix.lower():
+        name = res.path.name
+    resp = job.send(res.path, name, res.media)
+    for k, v in res.headers.items():
+        resp.headers[k] = v
+    if res.headers:
+        resp.headers["Access-Control-Expose-Headers"] = ", ".join(res.headers)
+    return resp
+
+
+async def one_file(file: UploadFile, fn, name_suffix: str | None, base_kw: str | None = None, **opts):
+    """Schema comune: salva il file, esegue l'operazione nella coda, invia il risultato."""
+    job = Job()
+    try:
+        p = await save(job, file)
+        base = stem(file)
+        if base_kw:
+            opts[base_kw] = base
+        res = await heavy(fn, p, job.dir, **opts)
+        return send(job, res, None if name_suffix is None else base + name_suffix)
+    except BaseException:
+        job.cleanup()
+        raise
+
+
+async def many_files(files: list[UploadFile], fn, name_suffix: str, **opts):
+    job = Job()
+    try:
+        paths = [await save(job, f, i) for i, f in enumerate(files)]
+        res = await heavy(fn, paths, job.dir, **opts)
+        return send(job, res, stem(files[0]) + name_suffix)
+    except BaseException:
+        job.cleanup()
+        raise
+
+
+async def read_small(up: UploadFile | None, limit_mb: int = 20) -> bytes | None:
+    if up is None:
+        return None
+    data = await up.read(limit_mb * 1024 * 1024 + 1)
+    if len(data) > limit_mb * 1024 * 1024:
+        fail(f"File troppo grande (massimo {limit_mb} MB)", 413)
+    return data or None
+
+
+def tool(path: str, summary: str, perm: str, doc: str = ""):
+    return app.post(path, summary=summary, description=(doc + "\n\n" if doc else "") + f"Permesso: `{perm}`", **API)
+
+
 @app.get("/healthz", tags=["Servizio"], summary="Stato del servizio")
 async def healthz():
     return {"ok": True}
 
 
-@app.post("/api/info", summary="Pagine, protezione e dimensione di un PDF", description="Permesso: `info`", **API)
+@app.get("/api/features", tags=["Servizio"], summary="Funzioni facoltative attive su questo server")
+async def features():
+    return {"office": converter.enabled(), "ocr": shutil.which("ocrmypdf") is not None,
+            "magic_folder": magic.config() is not None, "office_formats": sorted(converter.PDF_TO)}
+
+
+@tool("/api/info", "Pagine, protezione, dimensione e metadati di un PDF", "info")
 async def info(file: UploadFile = File(...)):
     job = Job()
     try:
-        p = await save(job, file)
-        try:
-            doc = fitz.open(p)
-        except Exception:
-            fail("Il file non e' un PDF valido")
-        with doc:
-            return {"pages": doc.page_count if not doc.needs_pass else None, "encrypted": bool(doc.needs_pass),
-                    "size": p.stat().st_size}
+        return ops.info(await save(job, file))
     finally:
         job.cleanup()
 
 
-@app.post("/api/thumbs", summary="Anteprime delle pagine (JPEG)", description="Permesso: `info`", **API)
-async def thumbs(file: UploadFile = File(...), width: int = Form(160)):
+@tool("/api/thumbs", "Anteprime delle pagine (JPEG)", "info", "`pages` vuoto = tutte; `width` in pixel (40-2000).")
+async def thumbs(file: UploadFile = File(...), width: int = Form(160), pages: str = Form("")):
     job = Job()
     try:
         p = await save(job, file)
-
-        def work():
-            with open_pdf(p) as doc:
-                if doc.page_count > 1000:
-                    fail("Troppe pagine per l'anteprima (massimo 1000)")
-                pages = []
-                for page in doc:
-                    r = page.rect
-                    zoom = max(0.05, min(2.0, width / max(r.width, 1)))
-                    pix = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom), alpha=False)
-                    data = base64.b64encode(pix.tobytes("jpeg", jpg_quality=70)).decode()
-                    pages.append({"w": r.width, "h": r.height, "rot": page.rotation,
-                                  "img": "data:image/jpeg;base64," + data})
-                return {"pages": pages}
-
-        return await heavy(work)
+        return await heavy(ops.thumbs, p, width, pages)
     finally:
         job.cleanup()
 
 
-@app.post("/api/merge", summary="Unisci PDF e immagini", description="Permesso: `merge`", **API)
+@tool("/api/merge", "Unisci PDF e immagini", "merge")
 async def merge(files: list[UploadFile] = File(...)):
-    if len(files) < 2:
-        fail("Scegli almeno due file da unire")
-    job = Job()
-    try:
-        paths = [await save(job, f, i) for i, f in enumerate(files)]
-
-        def work():
-            with fitz.open() as out:
-                for p in paths:
-                    with (image_doc(p) if p.suffix.lower() in IMG_EXT else open_pdf(p)) as src:
-                        out.insert_pdf(src)
-                res = job.path("unito.pdf")
-                finish_pdf(out, res)
-            return Output().add(res)
-
-        res = await heavy(work)
-        return job.send(res, f"{stem(files[0])}-unito.pdf", "application/pdf")
-    except BaseException:
-        job.cleanup()
-        raise
+    return await many_files(files, ops.merge, "-unito.pdf")
 
 
-@app.post("/api/split", summary="Dividi o estrai pagine", description="Permesso: `split`", **API)
+@tool("/api/split", "Dividi o estrai pagine", "split")
 async def split(file: UploadFile = File(...), mode: str = Form("ranges"), ranges: str = Form(""),
                 every: int = Form(1), merge_out: bool = Form(False)):
-    job = Job()
-    try:
-        p = await save(job, file)
-        base = stem(file)
-
-        def work():
-            with open_pdf(p) as doc:
-                n = doc.page_count
-                if mode == "every":
-                    k = max(1, every)
-                    groups = [list(range(i, min(i + k, n))) for i in range(0, n, k)]
-                else:
-                    groups = parse_ranges(ranges, n)
-                if merge_out:  # "estrai": tutte le pagine scelte in un solo PDF
-                    groups = [[i for g in groups for i in g]]
-                outs, total = [], Output()
-                for g in groups:
-                    with fitz.open() as part:
-                        for i in g:
-                            part.insert_pdf(doc, from_page=i, to_page=i)
-                        label = f"{g[0]+1}" if len(g) == 1 else f"{g[0]+1}-{g[-1]+1}"
-                        o = job.path(f"{base}_p{label}.pdf")
-                        finish_pdf(part, o)
-                    outs.append(total.add(o))
-                return outs
-
-        def work_zip():  # lo ZIP nello stesso turno della coda, per non rimettersi in fila
-            outs = work()
-            return outs[0] if len(outs) == 1 else zip_files(job, outs, f"{base}-diviso.zip")
-
-        res = await heavy(work_zip)
-        return job.send(res, res.name, "application/zip" if res.suffix == ".zip" else "application/pdf")
-    except BaseException:
-        job.cleanup()
-        raise
+    return await one_file(file, ops.split, None, "base", mode=mode, ranges=ranges, every=every, merge_out=merge_out)
 
 
-@app.post("/api/organize", summary="Riordina, ruota ed elimina pagine", description="Permesso: `organize`", **API)
+@tool("/api/organize", "Riordina, ruota ed elimina pagine", "organize",
+      "`pages` = JSON `[[indice_da_0, rotazione], ...]` nell'ordine finale; le pagine assenti si eliminano.")
 async def organize(file: UploadFile = File(...), pages: str = Form(...)):
-    """pages = [[indice_da_0, rotazione_aggiuntiva], ...] nell'ordine finale; le pagine assenti si eliminano."""
-    try:
-        spec = [(int(a), int(b) % 360) for a, b in json.loads(pages)]
-    except Exception:
-        fail("Elenco pagine non valido")
-    if not spec:
-        fail("Il documento finale non puo' essere vuoto")
-    job = Job()
-    try:
-        p = await save(job, file)
-
-        def work():
-            with open_pdf(p) as doc, fitz.open() as out:
-                for idx, rot in spec:
-                    if not 0 <= idx < doc.page_count:
-                        fail("Pagina inesistente")
-                    out.insert_pdf(doc, from_page=idx, to_page=idx)
-                    if rot:
-                        pg = out[-1]
-                        pg.set_rotation((pg.rotation + rot) % 360)
-                res = job.path("out.pdf")
-                finish_pdf(out, res)
-            return Output().add(res)
-
-        res = await heavy(work)
-        return job.send(res, f"{stem(file)}-modificato.pdf", "application/pdf")
-    except BaseException:
-        job.cleanup()
-        raise
+    return await one_file(file, ops.organize, "-modificato.pdf", pages=pages)
 
 
-@app.post("/api/rotate", summary="Ruota tutte le pagine", description="Permesso: `rotate`", **API)
-async def rotate(file: UploadFile = File(...), angle: int = Form(90)):
-    job = Job()
-    try:
-        p = await save(job, file)
-
-        def work():
-            with open_pdf(p) as doc:
-                for pg in doc:
-                    pg.set_rotation((pg.rotation + angle) % 360)
-                res = job.path("out.pdf")
-                finish_pdf(doc, res)
-            return res
-
-        res = await heavy(work)
-        return job.send(res, f"{stem(file)}-ruotato.pdf", "application/pdf")
-    except BaseException:
-        job.cleanup()
-        raise
+@tool("/api/rotate", "Ruota le pagine", "rotate")
+async def rotate(file: UploadFile = File(...), angle: int = Form(90), pages: str = Form("")):
+    return await one_file(file, ops.rotate, "-ruotato.pdf", angle=angle, pages=pages)
 
 
-GS_LEVELS = {  # livello -> (preset, dpi immagini a colori)
-    "low": ("/ebook", 220),
-    "medium": ("/ebook", 150),
-    "high": ("/screen", 72),
-}
-
-
-@app.post("/api/compress", summary="Comprimi", description="Permesso: `compress`", **API)
+@tool("/api/compress", "Comprimi", "compress")
 async def compress(file: UploadFile = File(...), level: str = Form("medium"), gray: bool = Form(False)):
-    if level not in GS_LEVELS:
-        fail("Livello di compressione sconosciuto")
-    job = Job()
-    try:
-        p = await save(job, file)
-        await heavy(lambda: open_pdf(p).close())
-        preset, dpi = GS_LEVELS[level]
-        res = job.path("out.pdf")
-        cmd = ["gs", "-q", "-dNOPAUSE", "-dBATCH", "-dSAFER", "-sDEVICE=pdfwrite", "-dCompatibilityLevel=1.6",
-               f"-dPDFSETTINGS={preset}", "-dDetectDuplicateImages=true", "-dCompressFonts=true",
-               "-dDownsampleColorImages=true", f"-dColorImageResolution={dpi}",
-               "-dDownsampleGrayImages=true", f"-dGrayImageResolution={dpi}",
-               "-dDownsampleMonoImages=true", f"-dMonoImageResolution={max(dpi * 2, 300)}"]
-        if gray:
-            cmd += ["-sColorConversionStrategy=Gray", "-dProcessColorModel=/DeviceGray"]
-        cmd += [f"-sOutputFile={res}", str(p)]
-        r = await heavy(subprocess.run, cmd, capture_output=True, text=True, timeout=1800)
-        if r.returncode != 0 or not res.exists():
-            log.error("Ghostscript: %s", (r.stderr or "")[-1000:])
-            fail("Ghostscript non e' riuscito a comprimere il file", 500)
-        before, after = p.stat().st_size, res.stat().st_size
-        if after >= before:  # non peggioriamo mai: restituiamo l'originale
-            res = p
-        resp = job.send(res, f"{stem(file)}-compresso.pdf", "application/pdf")
-        resp.headers["X-Size-Before"] = str(before)
-        resp.headers["X-Size-After"] = str(min(before, after))
-        resp.headers["Access-Control-Expose-Headers"] = "X-Size-Before, X-Size-After"
-        return resp
-    except BaseException:
-        job.cleanup()
-        raise
+    return await one_file(file, ops.compress, "-compresso.pdf", level=level, gray=gray)
 
 
-def image_doc(path: Path, page: str = "fit", margin: float = 0) -> fitz.Document:
-    """Un'immagine -> documento PDF di una pagina (pagina grande come l'immagine, oppure A4)."""
-    try:
-        img = fitz.open(path)
-        if img.page_count == 0:
-            raise ValueError
-        rect = img[0].rect
-        pdfbytes = img.convert_to_pdf()
-        img.close()
-    except Exception:
-        # formati che MuPDF non apre (es. webp vecchi): passiamo da Pillow
-        from PIL import Image
-        with Image.open(path) as im:
-            buf = io.BytesIO()
-            im.convert("RGB").save(buf, "PDF", resolution=72)
-        return fitz.open("pdf", buf.getvalue())
-    src = fitz.open("pdf", pdfbytes)
-    if page == "fit" and not margin:
-        return src
-    if page == "fit":
-        W, H = rect.width + 2 * margin, rect.height + 2 * margin
-    else:
-        W, H = fitz.paper_size(page)  # "a4", "letter"
-        if rect.width > rect.height:
-            W, H = H, W
-    out = fitz.open()
-    pg = out.new_page(width=W, height=H)
-    box = fitz.Rect(margin, margin, W - margin, H - margin)
-    pg.show_pdf_page(box, src, 0, keep_proportion=True)
-    src.close()
-    return out
-
-
-@app.post("/api/img2pdf", summary="Immagini in PDF", description="Permesso: `img2pdf`", **API)
+@tool("/api/img2pdf", "Immagini in PDF", "img2pdf")
 async def img2pdf(files: list[UploadFile] = File(...), page: str = Form("fit"), margin: float = Form(0)):
-    if page not in ("fit", "a4", "letter"):
-        fail("Formato pagina sconosciuto")
-    job = Job()
-    try:
-        paths = [await save(job, f, i) for i, f in enumerate(files)]
-
-        def work():
-            with fitz.open() as out:
-                for p in paths:
-                    src = open_pdf(p) if p.suffix.lower() == ".pdf" else \
-                        image_doc(p, page, max(0.0, min(margin, 72.0)))
-                    with src:
-                        out.insert_pdf(src)
-                res = job.path("out.pdf")
-                finish_pdf(out, res)
-            return Output().add(res)
-
-        res = await heavy(work)
-        name = stem(files[0]) + ("-immagini.pdf" if len(files) > 1 else ".pdf")
-        return job.send(res, name, "application/pdf")
-    except BaseException:
-        job.cleanup()
-        raise
+    return await many_files(files, ops.img2pdf, "-immagini.pdf" if len(files) > 1 else ".pdf", page=page, margin=margin)
 
 
-def safe_dpi(page: fitz.Page, dpi: int) -> int:
-    """Dpi per la pagina, abbassati se l'immagine supererebbe MAX_PAGE_PX pixel."""
-    r = page.rect
-    px = (r.width * dpi / 72) * (r.height * dpi / 72)
-    if px <= MAX_PAGE_PX:
-        return dpi
-    return max(1, math.floor(dpi * math.sqrt(MAX_PAGE_PX / px)))
+@tool("/api/pdf2img", "PDF in immagini", "pdf2img")
+async def pdf2img(file: UploadFile = File(...), format: str = Form("png"), dpi: int = Form(150), ranges: str = Form("")):
+    return await one_file(file, ops.pdf2img, None, "base", format=format, dpi=dpi, ranges=ranges)
 
 
-@app.post("/api/pdf2img", summary="PDF in immagini", description="Permesso: `pdf2img`", **API)
-async def pdf2img(file: UploadFile = File(...), format: str = Form("png"), dpi: int = Form(150),
-                  ranges: str = Form("")):
-    if format not in ("png", "jpg"):
-        fail("Formato immagine sconosciuto")
-    dpi = max(36, min(dpi, 600))
-    job = Job()
-    try:
-        p = await save(job, file)
-        base = stem(file)
-
-        def work():
-            with open_pdf(p) as doc:
-                idx = [i for g in parse_ranges(ranges, doc.page_count) for i in g] if ranges.strip() \
-                    else range(doc.page_count)
-                outs, reduced, total = [], 0, Output()
-                for i in idx:
-                    page_dpi = safe_dpi(doc[i], dpi)
-                    reduced += page_dpi < dpi
-                    pix = doc[i].get_pixmap(dpi=page_dpi, alpha=False)
-                    o = job.path(f"{base}_p{i+1:03d}.{format}")
-                    if format == "jpg":
-                        o.write_bytes(pix.tobytes("jpeg", jpg_quality=90))
-                    else:
-                        pix.save(o)
-                    del pix
-                    outs.append(total.add(o))
-                return outs, reduced
-
-        def work_zip():  # lo ZIP nello stesso turno della coda, per non rimettersi in fila
-            outs, reduced = work()
-            return (outs[0] if len(outs) == 1 else zip_files(job, outs, f"{base}-immagini.zip")), reduced
-
-        res, reduced = await heavy(work_zip)
-        if res.suffix == ".zip":
-            resp = job.send(res, res.name, "application/zip")
-        else:
-            resp = job.send(res, res.name, "image/png" if format == "png" else "image/jpeg")
-        if reduced:
-            resp.headers["X-Dpi-Reduced"] = str(reduced)
-        return resp
-    except BaseException:
-        job.cleanup()
-        raise
-
-
-@app.post("/api/protect", summary="Proteggi con password (AES-256)", description="Permesso: `protect`", **API)
+@tool("/api/protect", "Proteggi con password (AES-256)", "protect")
 async def protect(file: UploadFile = File(...), password: str = Form(...), owner: str = Form(""),
                   allow_print: bool = Form(True), allow_copy: bool = Form(True), allow_edit: bool = Form(False)):
-    if len(password) < 1:
+    if not password:
         fail("Scrivi una password")
-    job = Job()
-    try:
-        p = await save(job, file)
-
-        def work():
-            try:
-                pdf = pikepdf.open(p)
-            except pikepdf.PasswordError:
-                fail("Il PDF e' gia' protetto: sbloccalo prima")
-            except Exception:
-                fail("Il file non e' un PDF valido")
-            perms = pikepdf.Permissions(print_lowres=allow_print, print_highres=allow_print,
-                                        extract=allow_copy, accessibility=True,
-                                        modify_other=allow_edit, modify_annotation=allow_edit,
-                                        modify_form=allow_edit, modify_assembly=allow_edit)
-            res = job.path("out.pdf")
-            with pdf:
-                pdf.save(res, encryption=pikepdf.Encryption(user=password, owner=owner or secrets.token_urlsafe(24),
-                                                            R=6, allow=perms))
-            return res
-
-        res = await heavy(work)
-        return job.send(res, f"{stem(file)}-protetto.pdf", "application/pdf")
-    except BaseException:
-        job.cleanup()
-        raise
+    return await one_file(file, ops.protect, "-protetto.pdf", password=password, owner=owner,
+                          allow_print=allow_print, allow_copy=allow_copy, allow_edit=allow_edit)
 
 
-@app.post("/api/unlock", summary="Togli la password", description="Permesso: `protect`", **API)
+@tool("/api/unlock", "Togli la password", "protect")
 async def unlock(file: UploadFile = File(...), password: str = Form("")):
-    job = Job()
-    try:
-        p = await save(job, file)
-
-        def work():
-            try:
-                pdf = pikepdf.open(p, password=password)
-            except pikepdf.PasswordError:
-                fail("Password sbagliata")
-            except Exception:
-                fail("Il file non e' un PDF valido")
-            res = job.path("out.pdf")
-            with pdf:
-                pdf.save(res)  # senza encryption= salva in chiaro
-            return res
-
-        res = await heavy(work)
-        return job.send(res, f"{stem(file)}-sbloccato.pdf", "application/pdf")
-    except BaseException:
-        job.cleanup()
-        raise
+    return await one_file(file, ops.unlock, "-sbloccato.pdf", password=password)
 
 
-def hex_color(s: str) -> tuple[float, float, float]:
-    m = re.fullmatch(r"#?([0-9a-fA-F]{6})", s.strip())
-    if not m:
-        return (0, 0, 0)
-    v = m.group(1)
-    return tuple(int(v[i:i + 2], 16) / 255 for i in (0, 2, 4))
-
-
-@app.post("/api/stamp", summary="Numeri di pagina e filigrana", description="Permesso: `stamp`", **API)
+@tool("/api/stamp", "Numeri di pagina, intestazione, piè di pagina e filigrana", "stamp",
+      "In `header` e `footer` si possono usare `{n}`, `{tot}`, `{date}` e `{file}`. `wm_image` = logo (PNG/JPG).")
 async def stamp(file: UploadFile = File(...),
                 numbers: bool = Form(False), num_pos: str = Form("bottom-center"), num_fmt: str = Form("{n}"),
                 num_start: int = Form(1), num_size: float = Form(11), num_skip_first: bool = Form(False),
                 watermark: str = Form(""), wm_size: float = Form(60), wm_opacity: float = Form(0.2),
-                wm_angle: int = Form(45), wm_color: str = Form("#c0392b")):
-    if not numbers and not watermark.strip():
-        fail("Scegli i numeri di pagina, una filigrana o entrambi")
+                wm_angle: int = Form(45), wm_color: str = Form("#c0392b"), header: str = Form(""),
+                footer: str = Form(""), hf_size: float = Form(9), wm_image: UploadFile | None = File(None),
+                wm_image_scale: float = Form(0.4)):
+    img = await read_small(wm_image)
+    return await one_file(file, ops.stamp, "-timbrato.pdf", "name", numbers=numbers, num_pos=num_pos, num_fmt=num_fmt,
+                          num_start=num_start, num_size=num_size, num_skip_first=num_skip_first, watermark=watermark,
+                          wm_size=wm_size, wm_opacity=wm_opacity, wm_angle=wm_angle, wm_color=wm_color, header=header,
+                          footer=footer, hf_size=hf_size, wm_image=img, wm_image_scale=wm_image_scale)
+
+
+@tool("/api/ocr", "OCR: rende il PDF ricercabile e copiabile", "ocr",
+      "`lang`: `ita`, `eng` o `ita+eng`. `force` rifà l'OCR anche sulle pagine che hanno già testo.")
+async def ocr(file: UploadFile = File(...), lang: str = Form("ita+eng"), force: bool = Form(False), deskew: bool = Form(False)):
+    return await one_file(file, ops.ocr, "-ocr.pdf", lang=lang, force=force, deskew=deskew)
+
+
+@tool("/api/pdfa", "Converti in PDF/A-2 per l'archiviazione", "pdfa")
+async def pdfa(file: UploadFile = File(...), ocr_text: bool = Form(False), lang: str = Form("ita+eng")):
+    return await one_file(file, ops.pdfa, "-pdfa.pdf", ocr_text=ocr_text, lang=lang)
+
+
+@tool("/api/repair", "Ripara un PDF danneggiato", "repair")
+async def repair(file: UploadFile = File(...)):
+    return await one_file(file, ops.repair, "-riparato.pdf")
+
+
+@tool("/api/metadata", "Modifica i metadati o togli i dati nascosti", "metadata",
+      "`clean` toglie metadati, XMP, JavaScript, file allegati, miniature e testo nascosto. "
+      "I campi lasciati vuoti non vengono cambiati.")
+async def metadata(file: UploadFile = File(...), clean: bool = Form(False), title: str | None = Form(None),
+                   author: str | None = Form(None), subject: str | None = Form(None), keywords: str | None = Form(None),
+                   creator: str | None = Form(None), producer: str | None = Form(None)):
+    return await one_file(file, ops.metadata, "-metadati.pdf", clean=clean, title=title, author=author, subject=subject,
+                          keywords=keywords, creator=creator, producer=producer)
+
+
+@tool("/api/extract", "Estrai le immagini (ZIP) o il testo (TXT)", "extract")
+async def extract(file: UploadFile = File(...), kind: str = Form("images"), pages: str = Form("")):
+    return await one_file(file, ops.extract, None, "base", kind=kind, pages=pages)
+
+
+@tool("/api/pages", "Ridimensiona le pagine (es. tutto in A4) o ritaglia i margini", "pages",
+      "`mode`: `resize` (formato `paper`), `crop` (margini in mm `top`, `right`, `bottom`, `left`), `trim` (automatico).")
+async def pages(file: UploadFile = File(...), mode: str = Form("resize"), paper: str = Form("a4"),
+                orientation: str = Form("auto"), margin_mm: float = Form(0), top: float = Form(0), right: float = Form(0),
+                bottom: float = Form(0), left: float = Form(0)):
+    return await one_file(file, ops.pages, "-pagine.pdf", mode=mode, paper=paper, orientation=orientation,
+                          margin_mm=margin_mm, top=top, right=right, bottom=bottom, left=left)
+
+
+@tool("/api/nup", "Più pagine per foglio o opuscolo da stampare", "nup",
+      "`mode`: `nup` (`n` = 2, 4, 6, 8, 9 o 16) o `booklet` (fronte-retro, da piegare a metà).")
+async def nup(file: UploadFile = File(...), mode: str = Form("nup"), n: int = Form(2), paper: str = Form("a4"),
+              gap_mm: float = Form(4)):
+    return await one_file(file, ops.nup, "-opuscolo.pdf" if mode == "booklet" else "-fogli.pdf", mode=mode, n=n,
+                          paper=paper, gap_mm=gap_mm)
+
+
+def parse_box(text: str):
+    try:
+        box = [float(v) for v in json.loads(text)]
+        assert len(box) == 4
+        return box
+    except Exception:
+        fail("Posizione non valida")
+
+
+@tool("/api/sign", "Firma: inserisce un'immagine della firma nella pagina", "sign",
+      "`image` = PNG (meglio trasparente). `page` da 0 (-1 = ultima). `box` = JSON `[x0, y0, x1, y1]` in frazioni "
+      "della pagina come si vede (0-1, origine in alto a sinistra).")
+async def sign(file: UploadFile = File(...), image: UploadFile = File(...), page: int = Form(-1),
+               box: str = Form("[0.6, 0.82, 0.92, 0.92]")):
+    img = await read_small(image)
+    return await one_file(file, ops.sign, "-firmato.pdf", image=img, page=page, box=parse_box(box))
+
+
+@tool("/api/annotate", "Annotazioni: evidenziatore, riquadri, testo, note, frecce, disegno", "annotate",
+      "`items` = JSON, es. `[{\"page\": 0, \"type\": \"highlight\", \"box\": [0.1, 0.2, 0.5, 0.25]}]`. Tipi: "
+      "`highlight`, `rect`, `text` (`box`, `text`), `note` (`at`, `text`), `arrow` (`from`, `to`), `ink` (`points`). "
+      "Coordinate in frazioni della pagina. `flatten` rende le annotazioni parte della pagina.")
+async def annotate(file: UploadFile = File(...), items: str = Form(...), flatten: bool = Form(False)):
+    return await one_file(file, ops.annotate, "-annotato.pdf", items=items, flatten=flatten)
+
+
+@tool("/api/forms", "Elenco dei campi di un modulo PDF", "forms")
+async def forms(file: UploadFile = File(...)):
     job = Job()
     try:
         p = await save(job, file)
+        return await heavy(ops.form_fields, p)
+    finally:
+        job.cleanup()
 
-        def work():
-            doc = open_pdf(p)
-            total = doc.page_count
-            font = fitz.Font("helv")
-            for i, page in enumerate(doc):
-                # lavoriamo in coordinate "come si vede" anche sulle pagine ruotate
-                page.wrap_contents()
-                R = page.rect
-                derot = page.derotation_matrix
-                if numbers and not (num_skip_first and i == 0):
-                    n = num_start + i - (1 if num_skip_first else 0)
-                    text = num_fmt.replace("{n}", str(n)).replace("{tot}", str(total + num_start - 1 -
-                                                                                  (1 if num_skip_first else 0)))
-                    tw = font.text_length(text, num_size)
-                    m = 28
-                    vert, horiz = (num_pos.split("-") + ["center"])[:2]
-                    x = {"left": m, "center": (R.width - tw) / 2, "right": R.width - m - tw}.get(horiz, (R.width - tw) / 2)
-                    y = m + num_size if vert == "top" else R.height - m
-                    tw_ = fitz.TextWriter(page.rect)
-                    tw_.append(fitz.Point(x, y) * derot, text, font=font, fontsize=num_size)
-                    tw_.write_text(page, color=(0.15, 0.15, 0.15), morph=(fitz.Point(x, y) * derot,
-                                                                         fitz.Matrix(page.rotation)))
-                if watermark.strip():
-                    txt = watermark.strip()
-                    size = wm_size
-                    tl = font.text_length(txt, size)
-                    # centro della pagina (in coordinate non ruotate); il testo si scrive orizzontale
-                    # centrato li' e poi si ruota attorno al centro
-                    c = fitz.Point(R.width / 2, R.height / 2) * derot
-                    start = fitz.Point(c.x - tl / 2, c.y + size * 0.35)
-                    tw_ = fitz.TextWriter(page.rect)
-                    tw_.append(start, txt, font=font, fontsize=size)
-                    tw_.write_text(page, color=hex_color(wm_color), opacity=max(0.02, min(wm_opacity, 1.0)),
-                                   morph=(c, fitz.Matrix(page.rotation + wm_angle)))
-            res = job.path("out.pdf")
-            finish_pdf(doc, res)
-            doc.close()
-            return res
 
-        res = await heavy(work)
-        return job.send(res, f"{stem(file)}-timbrato.pdf", "application/pdf")
+@tool("/api/fill", "Compila un modulo PDF", "forms",
+      "`values` = JSON `{\"nome campo\": \"valore\"}`; per le caselle `true`/`false`. `flatten` blocca i campi.")
+async def fill(file: UploadFile = File(...), values: str = Form(...), flatten: bool = Form(False)):
+    return await one_file(file, ops.fill_form, "-compilato.pdf", values=values, flatten=flatten)
+
+
+@tool("/api/redact", "Oscura testo e zone (il contenuto viene tolto davvero)", "redact",
+      "`terms` = parole o frasi, una per riga. `presets` = `email`, `phone`, `iban`, `cf`, `card`. "
+      "`areas` = JSON `[{\"page\": 0, \"box\": [x0, y0, x1, y1]}]`. `regex` = espressione regolare su ogni parola.")
+async def redact(file: UploadFile = File(...), terms: str = Form(""), presets: str = Form(""), areas: str = Form("[]"),
+                 regex: str = Form(""), clean_metadata: bool = Form(True)):
+    return await one_file(file, ops.redact, "-oscurato.pdf", terms=terms, presets=presets, areas=areas, regex=regex,
+                          clean_metadata=clean_metadata)
+
+
+@tool("/api/compare", "Confronta due PDF", "compare",
+      "Risponde con un PDF: riepilogo con le parole tolte e aggiunte, e le pagine diverse affiancate con le zone cambiate in rosso.")
+async def compare(file_a: UploadFile = File(...), file_b: UploadFile = File(...)):
+    job = Job()
+    try:
+        a, b = await save(job, file_a, 0), await save(job, file_b, 1)
+        a, b = a.rename(job.path(Path(file_a.filename or "A.pdf").name)), b.rename(job.path("B-" + Path(file_b.filename or "B.pdf").name))
+        res = await heavy(ops.compare, a, b, job.dir)
+        return send(job, res, f"confronto-{stem(file_a)}.pdf")
     except BaseException:
         job.cleanup()
         raise
+
+
+@tool("/api/scan", "Scanner: foto di documenti raddrizzate e unite in un PDF", "scan",
+      "`mode`: `color`, `gray`, `bw` (bianco e nero, testo nitido). `paper`: `a4`, `letter` o `fit`.")
+async def scan(files: list[UploadFile] = File(...), mode: str = Form("color"), paper: str = Form("a4")):
+    return await many_files(files, ops.scan, "-scansione.pdf", mode=mode, paper=paper)
+
+
+@tool("/api/office", "Word, Excel, PowerPoint ↔ PDF (con Universal Converter)", "office",
+      "`target`: `pdf` per un documento Office, oppure `docx`, `odt`, `xlsx`, `pptx`, `txt` per un PDF. "
+      "Serve `CONVERTER_URL` sul server: vedi `/api/features`.")
+async def office(file: UploadFile = File(...), target: str = Form("pdf")):
+    return await one_file(file, converter.convert, None, "base", target=target)
+
+
+@tool("/api/chain", "Catena di operazioni, anche su più file insieme", "chain",
+      "`steps` = JSON `[{\"op\": \"compress\", \"level\": \"high\"}, {\"op\": \"stamp\", \"numbers\": true}]`, oppure "
+      "`chain` = nome o id di una catena salvata. Operazioni: " + ", ".join(f"`{k}`" for k in ops.CHAIN_OPS) + ". "
+      "Con un file risponde con il PDF, con più file con uno ZIP. Una chiave API deve avere anche i permessi delle operazioni.")
+async def chain_run(request: Request, files: list[UploadFile] = File(...), steps: str = Form(""), chain: str = Form("")):
+    if chain.strip():
+        steps_list = CHAINS.get(chain.strip())["steps"]
+    else:
+        try:
+            steps_list = json.loads(steps)
+        except Exception:
+            fail("Catena di operazioni non valida")
+    key_perms = getattr(request.state, "key_perms", None)
+    if key_perms is not None:
+        missing = ops.step_perms(steps_list) - key_perms
+        if missing:
+            fail(f"La chiave non ha il permesso '{sorted(missing)[0]}'", 403)
+    job = Job()
+    try:
+        paths = [await save(job, f, i) for i, f in enumerate(files)]
+        names = [stem(f) for f in files]
+
+        def work():
+            outs, total = [], ops.Output()
+            used = set()
+            for k, (p, base) in enumerate(zip(paths, names)):
+                d = job.path(f"c{k}")
+                d.mkdir()
+                r = ops.chain(p, d, steps_list, name=base)
+                name = magic.free_name(used, f"{base}.pdf")
+                used.add(name)
+                outs.append(total.add(r.path.rename(job.path(name))))
+            if len(outs) == 1:
+                return ops.Result(outs[0])
+            return ops.Result(ops.zip_files(job.dir, outs, "risultati.zip"), "application/zip")
+
+        res = await heavy(work)
+        return send(job, res, names[0] + "-elaborato.pdf" if len(paths) == 1 else "risultati.zip")
+    except BaseException:
+        job.cleanup()
+        raise
+
+
+@app.get("/api/chains", tags=["Strumenti PDF"], summary="Catene salvate")
+async def chains_list():
+    return {"chains": CHAINS.public()}
+
+
+# ---------------------------------------------------------------- catene salvate e cartella magica (admin)
+
+@app.get("/admin/api/chains", include_in_schema=False)
+async def admin_chains(request: Request):
+    admin_only(request)
+    return {"chains": CHAINS.public(), "magic": magic.config() is not None and {
+        k: v for k, v in (magic.config() or {}).items() if k in ("url", "user", "dir", "poll")}, "magic_stats": MAGIC_STATS}
+
+
+@app.post("/admin/api/chains", include_in_schema=False)
+async def admin_chain_create(request: Request, name: str = Body(...), steps: list = Body(...), magic_on: bool = Body(False, alias="magic")):
+    admin_only(request, write=True)
+    return CHAINS.create(name, steps, magic_on)
+
+
+@app.put("/admin/api/chains/{cid}", include_in_schema=False)
+async def admin_chain_update(request: Request, cid: str, name: str | None = Body(None), steps: list | None = Body(None),
+                             magic_on: bool | None = Body(None, alias="magic")):
+    admin_only(request, write=True)
+    if steps is not None:  # le password nascoste ("•••") restano quelle salvate
+        old = CHAINS.get(cid)["steps"]
+        for i, s in enumerate(steps):
+            for k in ("password", "owner"):
+                if s.get(k) == "•••" and i < len(old):
+                    s[k] = old[i].get(k, "")
+    return CHAINS.update(cid, name, steps, magic_on)
+
+
+@app.delete("/admin/api/chains/{cid}", include_in_schema=False)
+async def admin_chain_delete(request: Request, cid: str):
+    admin_only(request, write=True)
+    CHAINS.delete(cid)
+    return {"ok": True}
 
 
 # all'avvio: pulizia di eventuali avanzi (es. container riavviato a meta' lavoro)
