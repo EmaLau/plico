@@ -345,7 +345,7 @@ async function loadPages() {
     const j = await r.json();
     if (!r.ok) throw new Error(j.detail || "Errore");
     pages = j.pages.map((p, i) => ({i, img: p.img, rot: 0, del: false, sel: false, base: p.rot}));
-    renderPages(); renderOpts();
+    renderPages(); updateRun();  // senza ridisegnare le opzioni: si perderebbe quello che e' gia' stato scritto
   } catch (e) { ed.innerHTML = ""; $("#err").textContent = e.message; pages = []; updateRun(); }
 }
 

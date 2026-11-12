@@ -1,0 +1,5 @@
+# Per i test: pip install -r requirements-dev.txt && playwright install chromium
+-r server/requirements.txt
+pytest==8.3.5
+httpx==0.28.1
+playwright==1.50.0

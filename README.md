@@ -129,9 +129,25 @@ server/
   apikeys.py       API keys and /admin login
   static/          the web page (index.html) and the admin page (admin.html)
   selftest.py      real test of every tool against the running server
+  requirements.txt pinned Python dependencies
+tests/
+  test_api.py      API tests with FastAPI's TestClient (no container)
+  test_ui.py       every tool driven from the page in headless Chromium (Playwright)
+.github/workflows/ci.yml   pytest + Docker build + selftest on every push
 docker-compose.yml
 .env.example
 ```
+
+## Development
+
+```bash
+python3.13 -m venv .venv && . .venv/bin/activate
+pip install -r requirements-dev.txt
+python -m playwright install chromium   # or use your Chrome: PW_CHANNEL=chrome
+python -m pytest                        # needs Ghostscript installed for the compress test
+```
+
+The same tests run in GitHub Actions, together with a Docker build and the selftest inside the container.
 
 ## To do before publishing
 
@@ -140,7 +156,7 @@ docker-compose.yml
 - [x] `/api/info`: answer 413, not 400, for files over the limit; fix the `/api/thumbs` response in the docs (`img`, `rot`)
 - [x] Uploads are spooled to the data volume, not to the container filesystem; limit on output size
 - [x] Limit on parallel heavy jobs
-- [ ] pytest tests, browser test of the page, CI
+- [x] pytest tests, browser test of the page, CI
 - [ ] English or bilingual interface, security headers
 - [ ] Review the name and make sure nothing is copied from the site that inspired it
 

@@ -1,0 +1,8 @@
+# Dipendenze del server, con versioni fissate (le stesse nell'immagine Docker, nei test e nella CI).
+fastapi==0.115.11
+starlette==0.46.1
+uvicorn==0.32.0
+python-multipart==0.0.20
+pymupdf==1.26.5
+pikepdf==9.11.0
+pillow==11.1.0

@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import contextlib
 import io
 import json
 import logging
@@ -78,10 +79,18 @@ oppure con JSON `{"detail": "..."}` e un codice di errore HTTP.
 
 Esempio: `curl -H "apikey: updf_..." -F files=@a.pdf -F files=@b.pdf -o unito.pdf http://host:8080/api/merge`"""
 
-app = FastAPI(title="Universal-PDF", version="1.0", description=API_DOC,
-              docs_url="/apidocs", redoc_url=None, openapi_url="/apidocs/openapi.json")
 DATA = Path(os.environ.get("DATA_DIR", str(WORK / "data")))
 KEYS = apikeys.KeyStore(DATA)
+
+
+@contextlib.asynccontextmanager
+async def lifespan(_):
+    yield
+    KEYS.flush()  # salva l'"ultimo uso" delle chiavi rimasto in memoria
+
+
+app = FastAPI(title="Universal-PDF", version="1.0", description=API_DOC, lifespan=lifespan,
+              docs_url="/apidocs", redoc_url=None, openapi_url="/apidocs/openapi.json")
 API = {"dependencies": [Security(apikeys.header_scheme)], "tags": ["Strumenti PDF"]}
 # percorso dell'API -> permesso richiesto alla chiave
 PATH_PERM = {f"/api/{p}": p for p in apikeys.PERMISSIONS} | {"/api/thumbs": "info", "/api/unlock": "protect"}
@@ -146,11 +155,6 @@ async def api_keys(request: Request, call_next):
         except HTTPException as e:
             return JSONResponse({"detail": e.detail}, status_code=e.status_code)
     return await call_next(request)
-
-
-@app.on_event("shutdown")
-def flush_keys():
-    KEYS.flush()
 
 
 async def save(job: Job, up: UploadFile, idx: int = 0) -> Path:
