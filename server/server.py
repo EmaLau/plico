@@ -6,14 +6,15 @@ sul server non resta niente.
 
 API (tutte POST multipart, rispondono col file risultato, o JSON {"detail": ...} con errore)
   /api/info        file             -> {"pages": n, "encrypted": bool, "size": bytes}
-  /api/thumbs      file             -> {"pages": [{"w","h","png": dataURL}]}
+  /api/thumbs      file, width      -> {"pages": [{"w","h","rot","img": dataURL JPEG}]}
   /api/merge       files[]          -> PDF (accetta anche immagini)
   /api/split       file, mode, ranges|every -> ZIP (o PDF se ne esce uno solo)
   /api/organize    file, pages=JSON [[indice, rotazione], ...] -> PDF (riordina/ruota/elimina)
   /api/rotate      file, angle      -> PDF (tutte le pagine)
   /api/compress    file, level      -> PDF
   /api/img2pdf     files[]          -> PDF
-  /api/pdf2img     file, format, dpi -> ZIP (o immagine se una pagina)
+  /api/pdf2img     file, format, dpi -> ZIP (o immagine se una pagina); X-Dpi-Reduced = pagine
+                                        rese a dpi piu' bassi per non superare MAX_PAGE_MPX
   /api/protect     file, password   -> PDF (AES-256)
   /api/unlock      file, password   -> PDF
   /api/stamp       file, numbers..., watermark... -> PDF
@@ -25,7 +26,9 @@ import base64
 import io
 import json
 import os
+import math
 import re
+import secrets
 import shutil
 import subprocess
 import tempfile
@@ -42,6 +45,8 @@ from starlette.background import BackgroundTask
 STATIC = Path(__file__).parent / "static"
 TMP = Path(os.environ.get("WORK_DIR", "/tmp")) / "upd"
 MAX_MB = int(os.environ.get("MAX_UPLOAD_MB", "2048"))
+# Pixel massimi per una pagina resa come immagine (milioni): oltre, i dpi della pagina si abbassano.
+MAX_PAGE_PX = int(float(os.environ.get("MAX_PAGE_MPX", "50")) * 1_000_000)
 IMG_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tif", ".tiff"}
 
 app = FastAPI(title="Universal-PDF", docs_url=None, redoc_url=None, openapi_url=None)
@@ -161,11 +166,13 @@ async def info(file: UploadFile = File(...)):
     job = Job()
     try:
         p = await save(job, file)
-        doc = fitz.open(p)
-        return {"pages": doc.page_count if not doc.needs_pass else None, "encrypted": doc.needs_pass,
-                "size": p.stat().st_size}
-    except Exception:
-        fail("Il file non e' un PDF valido")
+        try:
+            doc = fitz.open(p)
+        except Exception:
+            fail("Il file non e' un PDF valido")
+        with doc:
+            return {"pages": doc.page_count if not doc.needs_pass else None, "encrypted": doc.needs_pass,
+                    "size": p.stat().st_size}
     finally:
         job.cleanup()
 
@@ -417,6 +424,15 @@ async def img2pdf(files: list[UploadFile] = File(...), page: str = Form("fit"), 
         raise
 
 
+def safe_dpi(page: fitz.Page, dpi: int) -> int:
+    """Dpi per la pagina, abbassati se l'immagine supererebbe MAX_PAGE_PX pixel."""
+    r = page.rect
+    px = (r.width * dpi / 72) * (r.height * dpi / 72)
+    if px <= MAX_PAGE_PX:
+        return dpi
+    return max(1, math.floor(dpi * math.sqrt(MAX_PAGE_PX / px)))
+
+
 @app.post("/api/pdf2img")
 async def pdf2img(file: UploadFile = File(...), format: str = Form("png"), dpi: int = Form(150),
                   ranges: str = Form("")):
@@ -432,22 +448,29 @@ async def pdf2img(file: UploadFile = File(...), format: str = Form("png"), dpi: 
             doc = open_pdf(p)
             idx = [i for g in parse_ranges(ranges, doc.page_count) for i in g] if ranges.strip() \
                 else range(doc.page_count)
-            outs = []
+            outs, reduced = [], 0
             for i in idx:
-                pix = doc[i].get_pixmap(dpi=dpi, alpha=False)
+                page_dpi = safe_dpi(doc[i], dpi)
+                reduced += page_dpi < dpi
+                pix = doc[i].get_pixmap(dpi=page_dpi, alpha=False)
                 o = job.path(f"{base}_p{i+1:03d}.{format}")
                 if format == "jpg":
                     o.write_bytes(pix.tobytes("jpeg", jpg_quality=90))
                 else:
                     pix.save(o)
                 outs.append(o)
-            return outs
+                del pix
+            return outs, reduced
 
-        outs = await run_in_threadpool(work)
+        outs, reduced = await run_in_threadpool(work)
         if len(outs) == 1:
-            return job.send(outs[0], outs[0].name, "image/png" if format == "png" else "image/jpeg")
-        z = await run_in_threadpool(zip_files, job, outs, f"{base}-immagini.zip")
-        return job.send(z, z.name, "application/zip")
+            resp = job.send(outs[0], outs[0].name, "image/png" if format == "png" else "image/jpeg")
+        else:
+            z = await run_in_threadpool(zip_files, job, outs, f"{base}-immagini.zip")
+            resp = job.send(z, z.name, "application/zip")
+        if reduced:
+            resp.headers["X-Dpi-Reduced"] = str(reduced)
+        return resp
     except BaseException:
         job.cleanup()
         raise
@@ -474,7 +497,7 @@ async def protect(file: UploadFile = File(...), password: str = Form(...), owner
                                         modify_other=allow_edit, modify_annotation=allow_edit,
                                         modify_form=allow_edit, modify_assembly=allow_edit)
             res = job.path("out.pdf")
-            pdf.save(res, encryption=pikepdf.Encryption(user=password, owner=owner or password + "\u0001owner",
+            pdf.save(res, encryption=pikepdf.Encryption(user=password, owner=owner or secrets.token_urlsafe(24),
                                                         R=6, allow=perms))
             return res
 

@@ -54,6 +54,7 @@ Copy `.env.example` to `.env` and change what you need.
 |---|---|---|
 | `UPDF_BIND` / `UPDF_PORT` | `127.0.0.1` / `8080` | Where to publish the service (`0.0.0.0` for the whole network) |
 | `MAX_UPLOAD_MB` | `2048` | Maximum size of each uploaded file |
+| `MAX_PAGE_MPX` | `50` | Maximum megapixels for a page rendered by *PDF to images*: larger pages get a lower DPI |
 | `UPDF_CPUS` / `UPDF_MEMORY` | `4` / `3G` | Container resource limits |
 | `UPDF_UID` / `UPDF_GID` | `1000` | User that runs the service inside the container |
 | `TZ` | `Europe/Rome` | Time zone |
@@ -65,15 +66,15 @@ All endpoints are `POST` with `multipart/form-data`. They answer with the result
 | Endpoint | Fields | Result |
 |---|---|---|
 | `/api/info` | `file` | `{"pages", "encrypted", "size"}` |
-| `/api/thumbs` | `file`, `width` | `{"pages": [{"w", "h", "png"}]}` (PNG data URLs) |
+| `/api/thumbs` | `file`, `width` | `{"pages": [{"w", "h", "rot", "img"}]}` (`img` is a JPEG data URL) |
 | `/api/merge` | `files` (2 or more, PDFs or images) | PDF |
 | `/api/split` | `file`, `mode` (`ranges` or `every`), `ranges` (`1-3, 5, 8-`), `every`, `merge_out` | ZIP, or PDF if there is a single output |
 | `/api/organize` | `file`, `pages` (JSON `[[index, rotation], ...]`, 0-based) | PDF |
 | `/api/rotate` | `file`, `angle` | PDF |
 | `/api/compress` | `file`, `level` (`low`, `medium`, `high`), `gray` | PDF, with headers `X-Size-Before` / `X-Size-After` |
 | `/api/img2pdf` | `files`, `page` (`fit`, `a4`, `letter`), `margin` | PDF |
-| `/api/pdf2img` | `file`, `format` (`png`, `jpg`), `dpi`, `ranges` | ZIP, or an image for a single page |
-| `/api/protect` | `file`, `password`, `owner` | PDF (AES-256) |
+| `/api/pdf2img` | `file`, `format` (`png`, `jpg`), `dpi`, `ranges` | ZIP, or an image for a single page. Pages that would exceed `MAX_PAGE_MPX` are rendered at a lower DPI and counted in the `X-Dpi-Reduced` header |
+| `/api/protect` | `file`, `password`, `owner`, `allow_print`, `allow_copy`, `allow_edit` | PDF (AES-256). Without `owner`, a random owner password is generated, so the permissions are enforced |
 | `/api/unlock` | `file`, `password` | PDF |
 | `/api/stamp` | `file`, `numbers`, `num_pos`, `num_fmt`, `num_start`, `num_size`, `num_skip_first`, `watermark`, `wm_size`, `wm_opacity`, `wm_angle`, `wm_color` | PDF |
 

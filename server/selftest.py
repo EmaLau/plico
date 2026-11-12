@@ -96,6 +96,29 @@ if d:
         d[i].get_pixmap(dpi=50).save(OUT / f"stamp_p{i+1}.png")
 s, b, _ = post("/api/merge", files=[("files", "a.pdf", pdf)]); check("merge one file -> 400", s == 400)
 s, b, _ = post("/api/info", files=[("file", "x.pdf", b"not a pdf")]); check("garbage -> 400", s == 400)
+# Pagina enorme (14.400 pt): l'immagine va ridotta, non deve far finire la memoria
+d = fitz.open(); d.new_page(width=14400, height=14400); huge = d.tobytes()
+s, b, h = post("/api/pdf2img", {"format": "jpg", "dpi": "300"}, [("file", "huge.pdf", huge)])
+px = fitz.Pixmap(b) if s == 200 else None
+max_px = float(os.environ.get("MAX_PAGE_MPX", "50")) * 1e6
+check("pdf2img huge page reduced", px and px.width * px.height <= max_px and h.get("x-dpi-reduced") == "1",
+      f"{px.width}x{px.height}" if px else str(s))
+# La password per aprire non deve dare i permessi del proprietario
+s, b, _ = post("/api/protect", {"password": "segreta", "allow_edit": "false"}, [("file", "a.pdf", pdf)])
+u = pikepdf.open(io.BytesIO(b), password="segreta")
+try:
+    o = pikepdf.open(io.BytesIO(b), password="segreta\x01owner"); old_owner = o.owner_password_matched
+except pikepdf.PasswordError:
+    old_owner = False
+check("protect random owner password", s == 200 and not u.owner_password_matched and not old_owner
+      and not u.allow.modify_other)
+# File oltre il limite su /api/info: 413, non "PDF non valido"
+max_mb = int(os.environ.get("MAX_UPLOAD_MB", "2048"))
+if max_mb <= 200:
+    s, b, _ = post("/api/info", files=[("file", "big.pdf", b"0" * ((max_mb + 1) << 20))])
+    check("info too large -> 413", s == 413, json.loads(b)["detail"])
+else:
+    print(f"SKIP info too large -> 413  (MAX_UPLOAD_MB={max_mb}, prova solo con limiti fino a 200 MB)")
 left = list((WORK / "upd").glob("*")) if (WORK / "upd").exists() else []
 check("no leftover temp files", not left, str(left))
 print("TUTTO OK" if ok else "CI SONO ERRORI")

@@ -539,6 +539,8 @@ $("#run").onclick = () => {
     const m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i);
     if (m) name = decodeURIComponent(m[1]);
     showDone(r.response, name, r.getResponseHeader("X-Size-Before"), r.getResponseHeader("X-Size-After"), total);
+    const red = +r.getResponseHeader("X-Dpi-Reduced");
+    if (red) $("#doneTxt").textContent += ` ${red === 1 ? "Una pagina era molto grande ed è stata resa" : red + " pagine erano molto grandi e sono state rese"} a una risoluzione più bassa.`;
   };
   xhr.send(fd);
 };

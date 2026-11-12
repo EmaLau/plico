@@ -15,6 +15,7 @@ services:
     environment:
       TZ: ${TZ:-Europe/Rome}
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-2048}
+      MAX_PAGE_MPX: ${MAX_PAGE_MPX:-50}
     volumes:
       - updf-work:/work
     deploy:
