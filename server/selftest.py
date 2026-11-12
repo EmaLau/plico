@@ -202,6 +202,13 @@ if admin_pw:
     s5, _, _ = post("/api/info", files=[("file", "a.pdf", pdf)], session=False)
     check("admin toggle require key (on: 401 without key, page ok; off: 200)",
           s == 200 and st["require_key"] and s2 == 401 and s3 == 200 and s4 == 200 and s5 == 200)
+    # interruttore "password per l'area admin"
+    s, _, _ = jcall("PUT", "/admin/api/settings", {"admin_login": False}, adm)
+    s2, lst2, _ = jcall("GET", "/admin/api/keys")
+    s3, _, h3 = jcall("PUT", "/admin/api/settings", {"admin_login": True})
+    s4, _, _ = jcall("GET", "/admin/api/keys")
+    check("admin toggle login (off: open without password; on again: 401)",
+          s == 200 and s2 == 200 and s3 == 200 and s4 == 401)
     s, _, _ = jcall("DELETE", f"/admin/api/keys/{k['id']}", cookie=adm)
     s2, b, _ = post("/api/merge", files=[("files", "a.pdf", pdf), ("files", "b.pdf", pdf2)],
                     headers={"apikey": key}, session=False)

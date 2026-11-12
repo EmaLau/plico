@@ -59,6 +59,7 @@ Copy `.env.example` to `.env` and change what you need.
 | `MAX_PAGE_MPX` | `50` | Maximum megapixels for a page rendered by *PDF to images*: larger pages get a lower DPI |
 | `UPDF_CPUS` / `UPDF_MEMORY` | `4` / `3G` | Container resource limits |
 | `UPDF_ADMIN_PASSWORD` | empty | Password of the `/admin` page where API keys are managed. Empty = admin page disabled. It can also be written in the file `admin-password` inside `DATA_DIR` |
+| `UPDF_ADMIN_LOGIN` | `true` | Initial value of the *admin password* switch. `false` = the `/admin` page opens without a password, so anyone who can reach the service can manage keys. The switch on `/admin` overrides it and is remembered |
 | `API_REQUIRE_KEY` | `false` | Initial value of the *key required* switch: `true` = API calls made outside the web page need an API key. The switch on the `/admin` page overrides it and is remembered |
 | `DATA_DIR` | `/work/data` | Where API keys (only their SHA-256 hashes) and the signing secret are stored |
 | `UPDF_UID` / `UPDF_GID` | `1000` | User that runs the service inside the container |

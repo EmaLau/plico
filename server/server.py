@@ -245,7 +245,7 @@ async def index():
 def admin_only(request: Request, write: bool = False):
     if not KEYS.admin_enabled:
         fail("Area admin disattivata: imposta UPDF_ADMIN_PASSWORD", 404)
-    if not KEYS.verify("admin", request.cookies.get(apikeys.ADMIN_COOKIE)):
+    if not KEYS.is_admin(request.cookies.get(apikeys.ADMIN_COOKIE)):
         fail("Accedi con la password admin", 401)
     # contro le richieste inviate da pagine di altri siti
     if write and request.headers.get("x-requested-with") != "universal-pdf":
@@ -259,14 +259,15 @@ async def admin_page():
 
 @app.get("/admin/api/state", include_in_schema=False)
 async def admin_state(request: Request):
-    return {"enabled": KEYS.admin_enabled, "logged": KEYS.verify("admin", request.cookies.get(apikeys.ADMIN_COOKIE)),
+    return {"enabled": KEYS.admin_enabled, "logged": KEYS.is_admin(request.cookies.get(apikeys.ADMIN_COOKIE)),
+            "admin_login": KEYS.admin_login, "has_password": bool(KEYS.admin_password),
             "require_key": KEYS.require_key, "permissions": apikeys.PERMISSIONS}
 
 
 @app.post("/admin/api/login", include_in_schema=False)
 async def admin_login(request: Request, password: str = Body(..., embed=True)):
-    if not KEYS.admin_enabled:
-        fail("Area admin disattivata: imposta UPDF_ADMIN_PASSWORD", 404)
+    if not KEYS.admin_password:
+        fail("Nessuna password admin impostata", 404)
     if request.headers.get("x-requested-with") != "universal-pdf":
         fail("Richiesta non valida", 403)
     if not KEYS.login(apikeys.client_ip(request), password):
@@ -286,10 +287,14 @@ async def admin_logout():
 
 
 @app.put("/admin/api/settings", include_in_schema=False)
-async def admin_settings(request: Request, require_key: bool = Body(..., embed=True)):
+async def admin_settings(request: Request, require_key: bool | None = Body(None), admin_login: bool | None = Body(None)):
     admin_only(request, write=True)
-    KEYS.set_require_key(require_key)
-    return {"require_key": KEYS.require_key}
+    KEYS.update_settings(require_key, admin_login)
+    resp = JSONResponse({"require_key": KEYS.require_key, "admin_login": KEYS.admin_login})
+    if admin_login:  # chi riattiva la password resta dentro
+        resp.set_cookie(apikeys.ADMIN_COOKIE, KEYS.sign("admin", apikeys.ADMIN_TTL), max_age=apikeys.ADMIN_TTL,
+                        httponly=True, samesite="strict", path="/admin")
+    return resp
 
 
 @app.get("/admin/api/keys", include_in_schema=False)

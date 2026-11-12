@@ -46,6 +46,7 @@ Copia `.env.example` in `.env` e cambia quello che serve.
 |---|---|---|
 | `UPDF_BIND` / `UPDF_PORT` | `127.0.0.1` / `8080` | Dove pubblicare il servizio (`0.0.0.0` per tutta la rete) |
 | `UPDF_ADMIN_PASSWORD` | vuota | Password della pagina `/admin` dove si gestiscono le chiavi API. Vuota = pagina disattivata. Si può anche scrivere nel file `admin-password` dentro `DATA_DIR` |
+| `UPDF_ADMIN_LOGIN` | `true` | Valore iniziale dell'interruttore *password per l'area admin*. `false` = la pagina `/admin` si apre senza password, quindi chiunque raggiunga il servizio gestisce le chiavi. L'interruttore nella pagina `/admin` ha la precedenza e viene ricordato |
 | `API_REQUIRE_KEY` | `false` | Valore iniziale dell'interruttore *chiave obbligatoria*: `true` = le chiamate fatte fuori dalla pagina web richiedono una chiave. L'interruttore nella pagina `/admin` ha la precedenza e viene ricordato |
 | `DATA_DIR` | `/work/data` | Dove si salvano le chiavi API (solo l'hash SHA-256) e il segreto per firmare i cookie |
 | `MAX_UPLOAD_MB` | `0` | Dimensione massima di ogni file caricato; `0` = nessun limite |

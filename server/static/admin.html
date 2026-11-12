@@ -99,6 +99,12 @@ code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13p
       <div class="err" id="createErr"></div>
     </section>
 
+    <section class="panel">
+      <h2>Accesso all'area admin</h2>
+      <label class="check switch"><input type="checkbox" id="adminLogin"> <b>Password per entrare in questa pagina</b></label>
+      <p class="note" id="adminNote"></p>
+    </section>
+
     <section id="created" class="panel newkey hidden">
       <h2>Chiave creata: copiala adesso</h2>
       <p class="note">Non verrà più mostrata: sul server resta solo una sua impronta. Se la perdi, revocala e creane un'altra.</p>
@@ -142,7 +148,8 @@ async function start() {
   $("#disabled").classList.toggle("hidden", st.enabled);
   $("#login").classList.toggle("hidden", !st.enabled || st.logged);
   $("#app").classList.toggle("hidden", !st.logged);
-  $("#logout").classList.toggle("hidden", !st.logged);
+  $("#logout").classList.toggle("hidden", !st.logged || !st.admin_login);
+  showAdminLogin(st.admin_login, st.has_password);
   showRequire(st.require_key);
   if (st.logged) { permBoxes($("#newPerms"), [], "new"); load(); }
   else if (st.enabled) $("#pw").focus();
@@ -154,6 +161,18 @@ function showRequire(on) {
     ? "Attivo: ogni chiamata fatta fuori dalla pagina web deve avere una chiave. La pagina web continua a funzionare."
     : "Disattivo: le chiamate senza chiave sono accettate. Le chiavi limitano comunque cosa può fare ogni script.";
 }
+function showAdminLogin(on, hasPw) {
+  $("#adminLogin").checked = on;
+  $("#adminLogin").disabled = !on && !hasPw;
+  $("#adminNote").innerHTML = on
+    ? "Attiva: per entrare serve la password admin."
+    : hasPw ? "<b style='color:var(--err)'>Disattiva:</b> chiunque raggiunga il servizio può creare, modificare e revocare le chiavi. Con la password spenta anche l'obbligo della chiave protegge poco, perché chiunque può crearsene una."
+            : "Disattiva, e non c'è nessuna password impostata: per riattivarla imposta UPDF_ADMIN_PASSWORD o il file admin-password e riavvia.";
+}
+$("#adminLogin").onchange = async e => {
+  try { const r = await call("PUT", "admin/api/settings", {admin_login: e.target.checked}); start(); }
+  catch (err) { $("#listErr").textContent = err.message; start(); }
+};
 $("#requireKey").onchange = async e => {
   try { showRequire((await call("PUT", "admin/api/settings", {require_key: e.target.checked})).require_key); }
   catch (err) { $("#listErr").textContent = err.message; showRequire(!e.target.checked); }

@@ -7,6 +7,8 @@
 - L'obbligo della chiave si attiva e si disattiva dalla pagina /admin (salvato in settings.json);
   API_REQUIRE_KEY da' solo il valore iniziale. Se attivo, le chiamate senza chiave e senza la sessione
   della pagina vengono rifiutate.
+- Anche la password dell'area admin si puo' disattivare dalla pagina /admin (valore iniziale da
+  UPDF_ADMIN_LOGIN, predefinito true). Senza password chiunque raggiunga il servizio gestisce le chiavi.
   Chi apre prima la pagina ottiene comunque la sessione: e' un modo per mettere ordine, non una difesa
   contro chi raggiunge il servizio.
 """
@@ -60,9 +62,11 @@ class KeyStore:
         self.settings_file = self.dir / "settings.json"
         self.lock = threading.Lock()
         self.require_key = _truthy(os.environ.get("API_REQUIRE_KEY"))
+        self.admin_login = _truthy(os.environ.get("UPDF_ADMIN_LOGIN", "true"))
         if self.settings_file.exists():
-            self.require_key = bool(json.loads(self.settings_file.read_text("utf-8")).get("require_key",
-                                                                                         self.require_key))
+            saved = json.loads(self.settings_file.read_text("utf-8"))
+            self.require_key = bool(saved.get("require_key", self.require_key))
+            self.admin_login = bool(saved.get("admin_login", self.admin_login))
         self.secret = self._load_secret()
         self.admin_password = self._load_admin_password()
         self.keys: dict[str, dict] = {}
@@ -97,12 +101,21 @@ class KeyStore:
 
     @property
     def admin_enabled(self) -> bool:
-        return bool(self.admin_password)
+        return bool(self.admin_password) or not self.admin_login
 
-    def set_require_key(self, value: bool):
+    def is_admin(self, cookie: str | None) -> bool:
+        return self.admin_enabled and (not self.admin_login or self.verify("admin", cookie))
+
+    def update_settings(self, require_key: bool | None = None, admin_login: bool | None = None):
         with self.lock:
-            self.require_key = bool(value)
-            self._write_private(self.settings_file, json.dumps({"require_key": self.require_key}))
+            if admin_login and not self.admin_password:
+                raise HTTPException(400, "Imposta prima una password (UPDF_ADMIN_PASSWORD o file admin-password)")
+            if require_key is not None:
+                self.require_key = bool(require_key)
+            if admin_login is not None:
+                self.admin_login = bool(admin_login)
+            self._write_private(self.settings_file, json.dumps({"require_key": self.require_key,
+                                                                "admin_login": self.admin_login}))
 
     # ------------------------------------------------------------ chiavi
 

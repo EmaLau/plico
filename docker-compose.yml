@@ -19,6 +19,7 @@ services:
       MAX_PARALLEL: ${MAX_PARALLEL:-2}
       MAX_PAGE_MPX: ${MAX_PAGE_MPX:-50}
       UPDF_ADMIN_PASSWORD: ${UPDF_ADMIN_PASSWORD:-}
+      UPDF_ADMIN_LOGIN: ${UPDF_ADMIN_LOGIN:-true}
       API_REQUIRE_KEY: ${API_REQUIRE_KEY:-false}
     volumes:
       - updf-work:/work
