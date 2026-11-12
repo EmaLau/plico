@@ -3,6 +3,7 @@
 
 # 1. Documentazione: dai Markdown di docs/ alle pagine /docs (pandoc resta solo in questo stadio)
 FROM debian:trixie-slim AS docs
+ENV LANG=C.UTF-8
 RUN apt-get update && apt-get install -y --no-install-recommends pandoc && rm -rf /var/lib/apt/lists/*
 COPY docs/documentation.md docs/documentazione.md /src/docs/
 COPY docs/web /src/docs/web

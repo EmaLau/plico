@@ -3,6 +3,8 @@
 # Uso: docs/web/build.sh <cartella di uscita>   (crea docs-it.html e docs-en.html)
 # Gira nello stadio "docs" del Dockerfile; in locale serve pandoc installato.
 set -eu
+# pandoc legge gli argomenti (titoli con — e →) secondo la localizzazione: serve UTF-8
+export LANG=C.UTF-8 LC_ALL=C.UTF-8
 HERE=$(cd "$(dirname "$0")" && pwd)
 DOCS=$(dirname "$HERE")
 OUT=${1:?cartella di uscita}

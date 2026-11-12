@@ -194,6 +194,13 @@ check("chain zip", s == 200 and len(zipfile.ZipFile(io.BytesIO(b)).namelist()) =
 
 # Chiavi API
 check("page session cookie", SESSION.startswith("plico_session="))
+for lang, title in (("it", "Plico — Documentazione"), ("en", "Plico — Documentation")):
+    try:
+        with urllib.request.urlopen(f"{URL}/docs?lang={lang}", timeout=30) as r:
+            page = r.read().decode("utf-8")
+        check(f"docs page ({lang})", f"<title>{title}</title>" in page and 'id="toc"' in page)
+    except Exception as e:
+        check(f"docs page ({lang})", False, str(e))
 s, b, _ = post("/api/info", files=[("file", "a.pdf", pdf)], headers={"apikey": "plico_sbagliata"})
 check("invalid api key -> 401", s == 401, json.loads(b)["detail"])
 if os.environ.get("API_REQUIRE_KEY", "").lower() in ("1", "true", "yes", "si", "on"):
