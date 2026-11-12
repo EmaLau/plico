@@ -4,7 +4,9 @@
   da una password; la chiave intera si vede una sola volta e sul disco resta solo il suo hash SHA-256.
 - Gli script mandano la chiave nell'intestazione `apikey`. La pagina web non ne ha bisogno: quando la
   si apre riceve un cookie di sessione firmato.
-- Con API_REQUIRE_KEY=true le chiamate senza chiave e senza la sessione della pagina vengono rifiutate.
+- L'obbligo della chiave si attiva e si disattiva dalla pagina /admin (salvato in settings.json);
+  API_REQUIRE_KEY da' solo il valore iniziale. Se attivo, le chiamate senza chiave e senza la sessione
+  della pagina vengono rifiutate.
   Chi apre prima la pagina ottiene comunque la sessione: e' un modo per mettere ordine, non una difesa
   contro chi raggiunge il servizio.
 """
@@ -55,8 +57,12 @@ class KeyStore:
         self.dir = data_dir
         self.dir.mkdir(parents=True, exist_ok=True)
         self.file = self.dir / "apikeys.json"
+        self.settings_file = self.dir / "settings.json"
         self.lock = threading.Lock()
         self.require_key = _truthy(os.environ.get("API_REQUIRE_KEY"))
+        if self.settings_file.exists():
+            self.require_key = bool(json.loads(self.settings_file.read_text("utf-8")).get("require_key",
+                                                                                         self.require_key))
         self.secret = self._load_secret()
         self.admin_password = self._load_admin_password()
         self.keys: dict[str, dict] = {}
@@ -92,6 +98,11 @@ class KeyStore:
     @property
     def admin_enabled(self) -> bool:
         return bool(self.admin_password)
+
+    def set_require_key(self, value: bool):
+        with self.lock:
+            self.require_key = bool(value)
+            self._write_private(self.settings_file, json.dumps({"require_key": self.require_key}))
 
     # ------------------------------------------------------------ chiavi
 

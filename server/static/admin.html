@@ -59,6 +59,7 @@ code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13p
 .khead{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
 .khead b{font-size:15px}
 .meta{color:var(--muted);font-size:13px}
+.switch{margin:2px 0 4px}
 .hidden{display:none !important}
 </style>
 </head>
@@ -107,6 +108,7 @@ code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13p
 
     <section class="panel">
       <h2>Chiavi attive</h2>
+      <label class="check switch"><input type="checkbox" id="requireKey"> <b>Chiave obbligatoria per le API</b></label>
       <p class="note" id="requireNote"></p>
       <div id="keys"></div>
       <div class="err" id="listErr"></div>
@@ -141,12 +143,21 @@ async function start() {
   $("#login").classList.toggle("hidden", !st.enabled || st.logged);
   $("#app").classList.toggle("hidden", !st.logged);
   $("#logout").classList.toggle("hidden", !st.logged);
-  $("#requireNote").textContent = st.require_key
-    ? "Il server richiede una chiave per ogni chiamata fatta fuori dalla pagina web (API_REQUIRE_KEY=true)."
-    : "Le chiamate senza chiave sono ancora accettate. Per rifiutarle imposta API_REQUIRE_KEY=true.";
+  showRequire(st.require_key);
   if (st.logged) { permBoxes($("#newPerms"), [], "new"); load(); }
   else if (st.enabled) $("#pw").focus();
 }
+
+function showRequire(on) {
+  $("#requireKey").checked = on;
+  $("#requireNote").textContent = on
+    ? "Attivo: ogni chiamata fatta fuori dalla pagina web deve avere una chiave. La pagina web continua a funzionare."
+    : "Disattivo: le chiamate senza chiave sono accettate. Le chiavi limitano comunque cosa può fare ogni script.";
+}
+$("#requireKey").onchange = async e => {
+  try { showRequire((await call("PUT", "admin/api/settings", {require_key: e.target.checked})).require_key); }
+  catch (err) { $("#listErr").textContent = err.message; showRequire(!e.target.checked); }
+};
 
 async function load() {
   $("#listErr").textContent = "";

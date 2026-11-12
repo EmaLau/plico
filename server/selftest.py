@@ -194,6 +194,14 @@ if admin_pw:
     s, _, _ = jcall("PUT", f"/admin/api/keys/{k['id']}", {"perms": ["merge", "rotate"]}, adm)
     s2, b, _ = post("/api/rotate", files=[("file", "a.pdf", pdf)], headers={"apikey": key}, session=False)
     check("permission added -> 200", s == 200 and s2 == 200)
+    # interruttore "chiave obbligatoria" dalla pagina admin
+    s, st, _ = jcall("PUT", "/admin/api/settings", {"require_key": True}, adm)
+    s2, _, _ = post("/api/info", files=[("file", "a.pdf", pdf)], session=False)
+    s3, _, _ = post("/api/info", files=[("file", "a.pdf", pdf)])
+    s4, _, _ = jcall("PUT", "/admin/api/settings", {"require_key": False}, adm)
+    s5, _, _ = post("/api/info", files=[("file", "a.pdf", pdf)], session=False)
+    check("admin toggle require key (on: 401 without key, page ok; off: 200)",
+          s == 200 and st["require_key"] and s2 == 401 and s3 == 200 and s4 == 200 and s5 == 200)
     s, _, _ = jcall("DELETE", f"/admin/api/keys/{k['id']}", cookie=adm)
     s2, b, _ = post("/api/merge", files=[("files", "a.pdf", pdf), ("files", "b.pdf", pdf2)],
                     headers={"apikey": key}, session=False)

@@ -59,7 +59,7 @@ Copy `.env.example` to `.env` and change what you need.
 | `MAX_PAGE_MPX` | `50` | Maximum megapixels for a page rendered by *PDF to images*: larger pages get a lower DPI |
 | `UPDF_CPUS` / `UPDF_MEMORY` | `4` / `3G` | Container resource limits |
 | `UPDF_ADMIN_PASSWORD` | empty | Password of the `/admin` page where API keys are managed. Empty = admin page disabled. It can also be written in the file `admin-password` inside `DATA_DIR` |
-| `API_REQUIRE_KEY` | `false` | `true` = API calls made outside the web page need an API key |
+| `API_REQUIRE_KEY` | `false` | Initial value of the *key required* switch: `true` = API calls made outside the web page need an API key. The switch on the `/admin` page overrides it and is remembered |
 | `DATA_DIR` | `/work/data` | Where API keys (only their SHA-256 hashes) and the signing secret are stored |
 | `UPDF_UID` / `UPDF_GID` | `1000` | User that runs the service inside the container |
 | `TZ` | `Europe/Rome` | Time zone |
@@ -80,7 +80,7 @@ API keys work like in [Gokapi](https://github.com/Forceu/Gokapi):
 curl -H "apikey: updf_..." -F files=@a.pdf -F files=@b.pdf -o merged.pdf http://localhost:8080/api/merge
 ```
 
-A wrong or revoked key gets `401`, a key without the permission for that tool gets `403`; both are checked before the upload is received. The web page does not need a key: opening it sets a signed session cookie. With `API_REQUIRE_KEY=true`, calls with neither a key nor that cookie get `401`. Anyone who can open the page can still get the cookie, so this keeps scripts in order; it is not a protection against people who can reach the service.
+A wrong or revoked key gets `401`, a key without the permission for that tool gets `403`; both are checked before the upload is received. The web page does not need a key: opening it sets a signed session cookie. When *Key required for the API* is switched on in `/admin` (initial value from `API_REQUIRE_KEY`), calls with neither a key nor that cookie get `401`. Anyone who can open the page can still get the cookie, so this keeps scripts in order; it is not a protection against people who can reach the service.
 
 ### Endpoints
 

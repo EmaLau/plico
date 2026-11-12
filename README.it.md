@@ -46,7 +46,7 @@ Copia `.env.example` in `.env` e cambia quello che serve.
 |---|---|---|
 | `UPDF_BIND` / `UPDF_PORT` | `127.0.0.1` / `8080` | Dove pubblicare il servizio (`0.0.0.0` per tutta la rete) |
 | `UPDF_ADMIN_PASSWORD` | vuota | Password della pagina `/admin` dove si gestiscono le chiavi API. Vuota = pagina disattivata. Si può anche scrivere nel file `admin-password` dentro `DATA_DIR` |
-| `API_REQUIRE_KEY` | `false` | `true` = le chiamate fatte fuori dalla pagina web richiedono una chiave API |
+| `API_REQUIRE_KEY` | `false` | Valore iniziale dell'interruttore *chiave obbligatoria*: `true` = le chiamate fatte fuori dalla pagina web richiedono una chiave. L'interruttore nella pagina `/admin` ha la precedenza e viene ricordato |
 | `DATA_DIR` | `/work/data` | Dove si salvano le chiavi API (solo l'hash SHA-256) e il segreto per firmare i cookie |
 | `MAX_UPLOAD_MB` | `0` | Dimensione massima di ogni file caricato; `0` = nessun limite |
 | `MAX_OUTPUT_MB` | `4096` | Dimensione massima dei risultati di una richiesta (es. tutte le immagini di *PDF in immagini*) |
@@ -67,7 +67,7 @@ Le chiavi API funzionano come in Gokapi: imposta `UPDF_ADMIN_PASSWORD`, apri **`
 curl -H "apikey: updf_..." -F files=@a.pdf -F files=@b.pdf -o unito.pdf http://localhost:8080/api/merge
 ```
 
-La pagina web non ha bisogno della chiave. Con `API_REQUIRE_KEY=true` le chiamate senza chiave fatte fuori dalla pagina vengono rifiutate (401); una chiave senza il permesso per quello strumento riceve 403.
+La pagina web non ha bisogno della chiave. Con l'interruttore *Chiave obbligatoria per le API* attivo in `/admin` (valore iniziale da `API_REQUIRE_KEY`) le chiamate senza chiave fatte fuori dalla pagina vengono rifiutate (401); una chiave senza il permesso per quello strumento riceve 403.
 
 ## Licenza
 

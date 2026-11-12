@@ -285,6 +285,13 @@ async def admin_logout():
     return resp
 
 
+@app.put("/admin/api/settings", include_in_schema=False)
+async def admin_settings(request: Request, require_key: bool = Body(..., embed=True)):
+    admin_only(request, write=True)
+    KEYS.set_require_key(require_key)
+    return {"require_key": KEYS.require_key}
+
+
 @app.get("/admin/api/keys", include_in_schema=False)
 async def keys_list(request: Request):
     admin_only(request)
