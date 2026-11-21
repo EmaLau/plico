@@ -40,8 +40,10 @@ You need Docker with Docker Compose.
 ```bash
 git clone https://github.com/EmaLau/plico.git
 cd plico
-docker compose up -d --build
+docker compose pull && docker compose up -d
 ```
+
+This uses the ready-made image `ghcr.io/emalau/plico` (linux/amd64). To build it yourself instead: `docker compose up -d --build`.
 
 Open <http://localhost:8080>. To check that every tool works:
 
@@ -74,7 +76,7 @@ Copy `.env.example` to `.env` and change what you need.
 | `NEXTCLOUD_URL` / `NEXTCLOUD_USER` / `NEXTCLOUD_PASSWORD` | empty | Turn on the [magic folder](#nextcloud) (use an app password) |
 | `NEXTCLOUD_PASSWORD_FILE` | empty | Read the app password from a file instead (Docker secrets) |
 | `NEXTCLOUD_MAGIC_DIR` / `NEXTCLOUD_POLL_SECONDS` | `Plico` / `60` | Magic folder name and how often it is checked |
-| `PLICO_UID` / `PLICO_GID` | `1000` | User that runs the service inside the container |
+| `PLICO_UID` / `PLICO_GID` | `1000` | User that runs the service inside the container (only when building with `--build`; the ready-made image uses 1000) |
 | `TZ` | `Europe/Rome` | Time zone |
 
 ## API

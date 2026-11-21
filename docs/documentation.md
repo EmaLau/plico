@@ -48,8 +48,10 @@ Plico is a set of PDF tools on a single web page, running on your own server. It
 git clone https://github.com/EmaLau/plico.git
 cd plico
 cp .env.example .env        # optional: change what you need
-docker compose up -d --build
+docker compose pull && docker compose up -d
 ```
+
+This uses the ready-made image `ghcr.io/emalau/plico` (linux/amd64), built and selftested by GitHub Actions at every release. To build it yourself instead: `docker compose up -d --build`.
 
 Open <http://localhost:8080>, then check every tool:
 
@@ -101,7 +103,7 @@ All settings are environment variables. With Compose they are read from `.env`; 
 | `NEXTCLOUD_URL` / `NEXTCLOUD_USER` | empty | Magic folder: Nextcloud address and user |
 | `NEXTCLOUD_PASSWORD` / `NEXTCLOUD_PASSWORD_FILE` | empty | App password, directly or from a file |
 | `NEXTCLOUD_MAGIC_DIR` / `NEXTCLOUD_POLL_SECONDS` | `Plico` / `60` | Magic folder name and check interval (minimum 15) |
-| `PLICO_UID` / `PLICO_GID` | `1000` | User inside the container (build arguments) |
+| `PLICO_UID` / `PLICO_GID` | `1000` | User inside the container (build arguments: only with `--build`; the ready-made image uses 1000) |
 | `TZ` | `Europe/Rome` | Time zone (used by `{date}` in headers and footers) |
 
 The two switches (`PLICO_ADMIN_LOGIN`, `API_REQUIRE_KEY`) are only *initial* values: once changed on `/admin` they are saved in `DATA_DIR/settings.json` and win over the environment.
@@ -288,7 +290,7 @@ The CI runs it with small limits and an admin password, so every check runs ther
 
 ```bash
 git pull
-docker compose up -d --build
+docker compose pull && docker compose up -d     # or: docker compose up -d --build
 docker compose exec plico python3 /app/selftest.py
 ```
 

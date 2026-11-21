@@ -33,8 +33,10 @@ Serve Docker con Docker Compose.
 ```bash
 git clone https://github.com/EmaLau/plico.git
 cd plico
-docker compose up -d --build
+docker compose pull && docker compose up -d
 ```
+
+Così si usa l'immagine pronta `ghcr.io/emalau/plico` (linux/amd64). Per costruirla da sé: `docker compose up -d --build`.
 
 Apri <http://localhost:8080>. Per controllare che tutti gli strumenti funzionino:
 
@@ -65,7 +67,7 @@ Copia `.env.example` in `.env` e cambia quello che serve.
 | `MAX_PARALLEL` | `2` | Lavori pesanti eseguiti insieme; gli altri aspettano il loro turno |
 | `MAX_PAGE_MPX` | `50` | Megapixel massimi per una pagina in *PDF in immagini*: le pagine più grandi vengono rese a dpi più bassi |
 | `PLICO_CPUS` / `PLICO_MEMORY` | `4` / `3G` | Limiti di risorse del container |
-| `PLICO_UID` / `PLICO_GID` | `1000` | Utente che esegue il servizio nel container |
+| `PLICO_UID` / `PLICO_GID` | `1000` | Utente che esegue il servizio nel container (solo costruendo l’immagine con `--build`; quella pronta usa 1000) |
 | `TZ` | `Europe/Rome` | Fuso orario |
 
 ## API

@@ -1,4 +1,4 @@
-# Avvio: docker compose up -d   ->   http://localhost:8080
+# Avvio: docker compose pull && docker compose up -d   ->   http://localhost:8080
 # Le impostazioni si cambiano in .env (vedi .env.example).
 services:
   plico:
@@ -8,7 +8,9 @@ services:
       args:
         UID: ${PLICO_UID:-1000}
         GID: ${PLICO_GID:-1000}
-    image: plico:latest
+    # immagine pronta: docker compose pull && docker compose up -d
+    # oppure costruita qui: docker compose up -d --build
+    image: ghcr.io/emalau/plico:latest
     container_name: plico
     restart: unless-stopped
     ports:

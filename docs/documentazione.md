@@ -48,8 +48,10 @@ Plico è un insieme di strumenti PDF in una sola pagina web, sul tuo server. È 
 git clone https://github.com/EmaLau/plico.git
 cd plico
 cp .env.example .env        # facoltativo: cambia quello che ti serve
-docker compose up -d --build
+docker compose pull && docker compose up -d
 ```
+
+Così si usa l'immagine pronta `ghcr.io/emalau/plico` (linux/amd64), costruita e provata con il selftest da GitHub Actions a ogni release. Per costruirla da sé: `docker compose up -d --build`.
 
 Apri <http://localhost:8080>, poi controlla tutti gli strumenti:
 
@@ -101,7 +103,7 @@ Le impostazioni sono variabili d'ambiente. Con Compose si leggono da `.env`; `.e
 | `NEXTCLOUD_URL` / `NEXTCLOUD_USER` | vuote | Cartella magica: indirizzo di Nextcloud e utente |
 | `NEXTCLOUD_PASSWORD` / `NEXTCLOUD_PASSWORD_FILE` | vuote | Password per le app, scritta qui o letta da un file |
 | `NEXTCLOUD_MAGIC_DIR` / `NEXTCLOUD_POLL_SECONDS` | `Plico` / `60` | Nome della cartella magica e ogni quanto si controlla (minimo 15) |
-| `PLICO_UID` / `PLICO_GID` | `1000` | Utente dentro il container (argomenti di build) |
+| `PLICO_UID` / `PLICO_GID` | `1000` | Utente dentro il container (argomenti di build: solo con `--build`; l’immagine pronta usa 1000) |
 | `TZ` | `Europe/Rome` | Fuso orario (usato da `{date}` in intestazioni e piè di pagina) |
 
 I due interruttori (`PLICO_ADMIN_LOGIN`, `API_REQUIRE_KEY`) danno solo il valore *iniziale*: una volta cambiati in `/admin` vengono salvati in `DATA_DIR/settings.json` e prevalgono sulle variabili.
@@ -288,7 +290,7 @@ La CI lo esegue con limiti piccoli e una password admin, così lì partono tutti
 
 ```bash
 git pull
-docker compose up -d --build
+docker compose pull && docker compose up -d     # oppure: docker compose up -d --build
 docker compose exec plico python3 /app/selftest.py
 ```
 

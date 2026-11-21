@@ -1,0 +1,70 @@
+name: Docker image
+
+# Each release tag (v1.0.0, ...) builds the image, runs the selftest inside it and publishes it to
+# ghcr.io/emalau/plico with the tags 1.0.0, 1.0 and latest.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/emalau/plico
+
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=sha,enable=${{ !startsWith(github.ref, 'refs/tags/v') }}
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: server/Dockerfile
+          load: true
+          tags: plico:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Selftest (small limits, so every check runs)
+        run: |
+          docker run -d --name plico -e MAX_UPLOAD_MB=50 -e MAX_OUTPUT_MB=8 \
+            -e PLICO_ADMIN_PASSWORD=ci-admin-password plico:ci
+          for i in $(seq 60); do
+            docker exec plico python3 -c "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8080/healthz')" && break
+            sleep 2
+          done
+          docker exec plico python3 /app/selftest.py
+      - name: Server log
+        if: failure()
+        run: docker logs plico | tail -100
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: server/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: |
+            ${{ steps.meta.outputs.labels }}
+            org.opencontainers.image.description=Self-hosted PDF tools on one page
+            org.opencontainers.image.licenses=AGPL-3.0-only
+          cache-from: type=gha
