@@ -375,6 +375,17 @@ def test_magic_folder(tmp_path):
     assert "Plico/Numera/Fatti/fattura (2).pdf" in dav.files
 
 
+def test_magic_folder_nested(tmp_path):
+    """NEXTCLOUD_MAGIC_DIR con sottocartelle: si creano anche quelle intermedie, in ordine."""
+    dav = FakeDAV()
+    made = []
+    orig = dav.mkdir
+    dav.mkdir = lambda path: (made.append(path), orig(path))
+    magic.process_once(dav, "Strumenti/Plico", [{"name": "Numera", "magic": True, "steps": []}], tmp_path,
+                       {"processed": 0, "errors": 0})
+    assert made[:3] == ["Strumenti", "Strumenti/Plico", "Strumenti/Plico/Numera"]
+
+
 def test_chain_store_defaults(tmp_path):
     s = chains.ChainStore(tmp_path)
     assert len(s.list()) == 3 and not any(c["magic"] for c in s.list())

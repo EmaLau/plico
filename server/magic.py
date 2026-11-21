@@ -108,7 +108,9 @@ def free_name(names: set[str], name: str) -> str:
 def process_once(dav: WebDAV, root: str, chains: list[dict], work: Path, stats: dict) -> int:
     """Un giro: elabora i PDF presenti nelle cartelle delle catene magiche. Restituisce quanti ne ha fatti."""
     done = 0
-    dav.mkdir(root)
+    parts = root.split("/")
+    for i in range(1, len(parts) + 1):  # anche le cartelle intermedie, es. "Strumenti/Plico"
+        dav.mkdir("/".join(parts[:i]))
     for c in chains:
         if not c.get("magic"):
             continue
