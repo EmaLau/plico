@@ -99,7 +99,8 @@ app.mount("/static", StaticFiles(directory=STATIC), name="static")
 API = {"dependencies": [Security(apikeys.header_scheme)], "tags": ["Strumenti PDF"]}
 # percorso dell'API -> permesso richiesto alla chiave
 PATH_PERM = {f"/api/{p}": p for p in apikeys.PERMISSIONS} | {"/api/thumbs": "info", "/api/unlock": "protect",
-                                                              "/api/fill": "forms", "/api/forms": "forms"}
+                                                              "/api/fill": "forms", "/api/forms": "forms",
+                                                              "/api/converter-result": "office"}
 log = logging.getLogger("plico")
 _slots: asyncio.Semaphore | None = None
 
@@ -394,6 +395,19 @@ async def features():
     return {"office": converter.enabled(), "ocr": shutil.which("ocrmypdf") is not None,
             "magic_folder": magic.config() is not None, "office_formats": sorted(converter.PDF_TO),
             "converter_page": os.environ.get("CONVERTER_PUBLIC_URL", "").strip()}
+
+
+@tool("/api/converter-result", "PDF gia' convertito dal Convertitore universale", "office",
+      "`job` = id del lavoro nel convertitore (lo usa il pulsante *Apri in Plico* del convertitore). "
+      "Plico scarica il risultato con la sua `CONVERTER_API_KEY` e lo restituisce. Serve `CONVERTER_URL`.")
+async def converter_result(job: str = Form(...)):
+    j = Job()
+    try:
+        path, name = await run_in_threadpool(converter.fetch_result, job, j.dir)
+    except BaseException:
+        j.cleanup()
+        raise
+    return j.send(path, name, "application/pdf")
 
 
 @tool("/api/info", "Pagine, protezione, dimensione e metadati di un PDF", "info")

@@ -158,6 +158,8 @@ With `CONVERTER_URL` pointing to a [Universal Converter](https://github.com/EmaL
 - To PDF: `.doc .docx .odt .rtf .txt .xls .xlsx .ods .csv .ppt .pptx .odp`.
 - From PDF: `docx`, `odt`, `xlsx`, `pptx`, `txt`.
 - If the converter requires a key, set `CONVERTER_API_KEY` (sent as `apikey`).
+- **Open in Plico**: when the converter has `PLICO_URL`, its PDF results get an *Open in Plico* button. It opens Plico at `#from-converter=<job id>`; Plico fetches the PDF from the converter on the server side (`POST /api/converter-result` with `job`, permission `office`, using `CONVERTER_API_KEY`) and offers it as if you had just dropped it on the page.
+- With `CONVERTER_PUBLIC_URL` (the converter as the browser reaches it, or `:30124` for the same host) the home page gets an *Other formats in the Converter* card.
 
 # Nextcloud: right click → Strumenti PDF
 

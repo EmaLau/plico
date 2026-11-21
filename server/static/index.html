@@ -937,7 +937,30 @@ fetch("api/features").then(r => r.json()).then(f => {
   });
 }).catch(() => {});
 fetch("api/chains").then(r => r.json()).then(j => { CHAINS = j.chains || []; if (tool?.id === "catena") renderOpts(true); }).catch(() => {});
+
+// "Apri in Plico" dal Convertitore universale: #from-converter=<id del lavoro>. Plico prende il PDF dal convertitore
+// (lato server, con la sua chiave) e lo propone come se l'avessi appena trascinato qui.
+async function fromConverter() {
+  const m = location.hash.match(/^#from-converter=([0-9a-f]{32})$/);
+  if (!m) return false;
+  history.replaceState(null, "", location.pathname + location.search);
+  const note = document.createElement("p");
+  note.className = "hint"; note.id = "convNote"; note.textContent = "Prendo il PDF dal Convertitore…";
+  $("#home").prepend(note);
+  try {
+    const fd = new FormData(); fd.append("job", m[1]);
+    const r = await fetch("api/converter-result", {method: "POST", body: fd});
+    if (!r.ok) { let d = ""; try { d = (await r.json()).detail; } catch {} throw new Error(d || "Errore " + r.status); }
+    const cd = r.headers.get("Content-Disposition") || "";
+    const enc = cd.match(/filename\*=utf-8''([^;]+)/i), plain = cd.match(/filename="?([^";]+)"?/i);
+    const name = enc ? decodeURIComponent(enc[1]) : plain ? plain[1] : "documento.pdf";
+    note.remove();
+    incoming([new File([await r.blob()], name, {type: "application/pdf"})]);
+  } catch (e) { note.textContent = "Il PDF del Convertitore non è disponibile: " + e.message; note.classList.add("err"); }
+  return true;
+}
 route();
+fromConverter();
 </script>
 </body>
 </html>

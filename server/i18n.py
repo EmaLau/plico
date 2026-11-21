@@ -83,6 +83,9 @@ _EN: list[tuple[str, str]] = [
     (r"Scegli un PDF", "Choose a PDF"),
     (r"Formato di destinazione sconosciuto", "Unknown target format"),
     (r"Il convertitore non e' riuscito a convertire il file:?(.*)", r"The converter could not convert the file:\1"),
+    (r"Lavoro del convertitore non valido", "Invalid converter job"),
+    (r"Il risultato del convertitore non e' ancora pronto", "The converter result is not ready yet"),
+    (r"Il risultato del convertitore non e' un PDF", "The converter result is not a PDF"),
     (r"Il convertitore", "The converter"),
 ]
 _TABLE = [(re.compile(f"^{it}$"), en) for it, en in _EN]

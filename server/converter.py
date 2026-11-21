@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 import urllib.error
 import urllib.request
@@ -86,3 +87,27 @@ def convert(src: Path, out_dir: Path, target: str, base: str = "documento") -> R
             _request("DELETE", f"/api/jobs/{jid}", timeout=10).close()
         except Exception:
             pass
+
+
+def fetch_result(job_id: str, out_dir: Path) -> tuple[Path, str]:
+    """PDF gia' pronto nel convertitore (pulsante "Apri in Plico"): lo scarica con la chiave di Plico.
+
+    Il lavoro resta nel convertitore (l'utente puo' ancora scaricarlo da li'). L'id e' quello lungo e casuale del
+    lavoro: senza conoscerlo non si legge niente.
+    """
+    if not enabled():
+        fail("Conversione Office non attiva su questo server (CONVERTER_URL)", 501)
+    if not re.fullmatch(r"[0-9a-f]{32}", job_id or ""):
+        fail("Lavoro del convertitore non valido")
+    with _request("GET", f"/api/jobs/{job_id}") as r:
+        st = json.loads(r.read())
+    name = Path(st.get("out_name") or "documento.pdf").name
+    if st.get("state") != "done":
+        fail("Il risultato del convertitore non e' ancora pronto", 409)
+    if not name.lower().endswith(".pdf"):
+        fail("Il risultato del convertitore non e' un PDF")
+    res = out_dir / "dal-convertitore.pdf"
+    with _request("GET", f"/api/jobs/{job_id}/download", timeout=TIMEOUT) as r, res.open("wb") as f:
+        while chunk := r.read(1 << 20):
+            f.write(chunk)
+    return res, name

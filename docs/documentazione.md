@@ -158,6 +158,8 @@ Con `CONVERTER_URL` che punta a un [Convertitore universale](https://github.com/
 - In PDF: `.doc .docx .odt .rtf .txt .xls .xlsx .ods .csv .ppt .pptx .odp`.
 - Da PDF: `docx`, `odt`, `xlsx`, `pptx`, `txt`.
 - Se il convertitore chiede una chiave, imposta `CONVERTER_API_KEY` (mandata come `apikey`).
+- **Apri in Plico**: se il convertitore ha `PLICO_URL`, i suoi risultati PDF hanno il pulsante *Apri in Plico*. Apre Plico su `#from-converter=<id del lavoro>`; Plico prende il PDF dal convertitore lato server (`POST /api/converter-result` con `job`, permesso `office`, usando `CONVERTER_API_KEY`) e lo propone come se l'avessi appena trascinato nella pagina.
+- Con `CONVERTER_PUBLIC_URL` (il convertitore come lo raggiunge il browser, oppure `:30124` per lo stesso host) la home mostra la scheda *Altri formati nel Convertitore*.
 
 # Nextcloud: tasto destro → Strumenti PDF
 

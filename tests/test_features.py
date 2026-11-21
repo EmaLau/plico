@@ -417,3 +417,31 @@ def test_converter_page_in_features(client, monkeypatch):
     assert client.get("/api/features").json()["converter_page"] == ":30124"
     monkeypatch.delenv("CONVERTER_PUBLIC_URL")
     assert client.get("/api/features").json()["converter_page"] == ""
+
+
+def test_converter_result(client, monkeypatch, tmp_path):
+    """Pulsante "Apri in Plico" del convertitore: Plico prende il PDF con la sua chiave."""
+    import io
+    calls = []
+
+    class Resp(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def fake(method, path, body=None, headers=None, timeout=60):
+        calls.append(path)
+        if path.endswith("/download"):
+            return Resp(PDF)
+        return Resp(json.dumps({"state": "done", "out_name": "Relazione finale.pdf"}).encode())
+
+    monkeypatch.setattr(converter, "URL", "http://converter:8080")
+    monkeypatch.setattr(converter, "_request", fake)
+    jid = "a" * 32
+    r = client.post("/api/converter-result", data={"job": jid})
+    assert r.status_code == 200 and r.content == PDF
+    assert "Relazione%20finale.pdf" in r.headers["content-disposition"]
+    assert calls == [f"/api/jobs/{jid}", f"/api/jobs/{jid}/download"]
+    assert client.post("/api/converter-result", data={"job": "../etc"}).status_code == 400
