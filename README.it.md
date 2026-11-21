@@ -60,6 +60,7 @@ Copia `.env.example` in `.env` e cambia quello che serve.
 | `API_REQUIRE_KEY` | `false` | Valore iniziale dell'interruttore *chiave obbligatoria*: `true` = le chiamate fatte fuori dalla pagina web richiedono una chiave. L'interruttore nella pagina `/admin` ha la precedenza e viene ricordato |
 | `DATA_DIR` | `/work/data` | Dove si salvano le chiavi API (solo l'hash SHA-256) e il segreto per firmare i cookie |
 | `CONVERTER_URL` | vuota | Indirizzo del Convertitore universale per Word, Excel, PowerPoint ↔ PDF. Vuota = strumenti nascosti |
+| `CONVERTER_PUBLIC_URL` | vuota | Indirizzo del Convertitore per il browser (`http://nas:30124`, oppure `:30124` = stesso host): mostra la scheda *Altri formati nel Convertitore* |
 | `NEXTCLOUD_URL` / `NEXTCLOUD_USER` / `NEXTCLOUD_PASSWORD` | vuote | Attivano la cartella magica (usa una password per le app); `NEXTCLOUD_MAGIC_DIR` e `NEXTCLOUD_POLL_SECONDS` per nome e frequenza |
 | `NEXTCLOUD_PASSWORD_FILE` | vuota | Legge la password per le app da un file (segreti di Docker) |
 | `MAX_UPLOAD_MB` | `0` | Dimensione massima di ogni file caricato; `0` = nessun limite |

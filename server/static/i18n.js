@@ -88,6 +88,7 @@ const PLICO_I18N = (() => {
     // fase 4: strumenti nuovi
     "Modifica e firma": "Edit and sign", "Strumenti avanzati": "Advanced tools",
     "OCR": "OCR", "Rendi cercabile e copiabile il testo dei PDF scansionati.": "Make the text of scanned PDFs searchable and copyable.",
+    "Altri formati nel Convertitore": "Other formats in the Converter", "Immagini, audio, video, ebook, archivi: circa 200 formati.": "Images, audio, video, ebooks, archives: about 200 formats.",
     "Office in PDF": "Office to PDF", "Word, Excel, PowerPoint e OpenDocument in PDF.": "Word, Excel, PowerPoint and OpenDocument to PDF.",
     "PDF in Office": "PDF to Office", "Da PDF a Word, Excel, PowerPoint o testo.": "From PDF to Word, Excel, PowerPoint or text.",
     "PDF/A": "PDF/A", "Converti in PDF/A per conservarlo a lungo.": "Convert to PDF/A to keep it for the long term.",

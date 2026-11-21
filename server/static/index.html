@@ -923,6 +923,15 @@ $("#docsLink").href = "docs?lang=" + PLICO_I18N.lang;
 
 fetch("api/features").then(r => r.json()).then(f => {
   FEAT = f;
+  // scheda verso il Convertitore universale (CONVERTER_PUBLIC_URL; ":30124" = stesso host, altra porta)
+  const cp = (f.converter_page || "").trim();
+  const cu = /^:\d+/.test(cp) ? `${location.protocol}//${location.hostname}${cp}` : (/^https?:\/\//.test(cp) ? cp : "");
+  if (cu) {
+    const a = document.createElement("a");
+    a.className = "tool"; a.href = cu; a.target = "_blank"; a.rel = "noopener"; a.style.setProperty("--c", "#4f46e5");
+    a.innerHTML = `<span class="ic">${svg("office")}</span><h3>Altri formati nel Convertitore</h3><p>Immagini, audio, video, ebook, archivi: circa 200 formati.</p>`;
+    $("#g-conv").append(a);
+  }
   TOOLS.filter(t => t.needs && !f[t.needs]).forEach(t => {
     document.querySelectorAll(`a.tool[href="#${t.id}"], #pickGrid [data-t="${t.id}"]`).forEach(el => el.remove());
   });

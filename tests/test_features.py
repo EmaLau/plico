@@ -399,3 +399,10 @@ def test_magic_password_file(tmp_path, monkeypatch):
     assert magic.config()["password"] == "segreta"
     monkeypatch.setenv("NEXTCLOUD_PASSWORD_FILE", str(tmp_path / "manca"))
     assert magic.config() is None
+
+
+def test_converter_page_in_features(client, monkeypatch):
+    monkeypatch.setenv("CONVERTER_PUBLIC_URL", " :30124 ")
+    assert client.get("/api/features").json()["converter_page"] == ":30124"
+    monkeypatch.delenv("CONVERTER_PUBLIC_URL")
+    assert client.get("/api/features").json()["converter_page"] == ""

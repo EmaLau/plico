@@ -392,7 +392,8 @@ async def healthz():
 @app.get("/api/features", tags=["Servizio"], summary="Funzioni facoltative attive su questo server")
 async def features():
     return {"office": converter.enabled(), "ocr": shutil.which("ocrmypdf") is not None,
-            "magic_folder": magic.config() is not None, "office_formats": sorted(converter.PDF_TO)}
+            "magic_folder": magic.config() is not None, "office_formats": sorted(converter.PDF_TO),
+            "converter_page": os.environ.get("CONVERTER_PUBLIC_URL", "").strip()}
 
 
 @tool("/api/info", "Pagine, protezione, dimensione e metadati di un PDF", "info")

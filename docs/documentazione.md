@@ -99,6 +99,7 @@ Le impostazioni sono variabili d'ambiente. Con Compose si leggono da `.env`; `.e
 | `DATA_DIR` | `/work/data` | Impostazioni, hash delle chiavi, catene, segreto per i cookie |
 | `WORK_DIR` | `/work` (immagine) | Cartella dei file temporanei |
 | `CONVERTER_URL` / `CONVERTER_API_KEY` | vuote | Convertitore universale per Office ↔ PDF |
+| `CONVERTER_PUBLIC_URL` | vuota | Indirizzo del Convertitore come lo raggiunge il browser (`http://nas:30124`, oppure `:30124` per lo stesso host): la home mostra la scheda *Altri formati nel Convertitore* |
 | `CONVERTER_TIMEOUT` | `600` | Secondi di attesa per una conversione |
 | `NEXTCLOUD_URL` / `NEXTCLOUD_USER` | vuote | Cartella magica: indirizzo di Nextcloud e utente |
 | `NEXTCLOUD_PASSWORD` / `NEXTCLOUD_PASSWORD_FILE` | vuote | Password per le app, scritta qui o letta da un file |

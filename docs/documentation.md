@@ -99,6 +99,7 @@ All settings are environment variables. With Compose they are read from `.env`; 
 | `DATA_DIR` | `/work/data` | Settings, key hashes, chains, signing secret |
 | `WORK_DIR` | `/work` (image) | Base folder for temporary files |
 | `CONVERTER_URL` / `CONVERTER_API_KEY` | empty | Universal Converter for Office ↔ PDF |
+| `CONVERTER_PUBLIC_URL` | empty | Converter address as the browser reaches it (`http://nas:30124`, or `:30124` for the same host): the home page gets an *Other formats in the Converter* card |
 | `CONVERTER_TIMEOUT` | `600` | Seconds to wait for a conversion |
 | `NEXTCLOUD_URL` / `NEXTCLOUD_USER` | empty | Magic folder: Nextcloud address and user |
 | `NEXTCLOUD_PASSWORD` / `NEXTCLOUD_PASSWORD_FILE` | empty | App password, directly or from a file |
